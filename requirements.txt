@@ -1,0 +1,60 @@
+# =============================================================
+# AI-Enhanced Multi-Modal Secure Steganography System
+# Requirements - Using Modern 2025 State-of-the-Art Libraries
+# =============================================================
+
+# Core Scientific Computing
+numpy>=1.26.0
+scipy>=1.12.0
+opencv-python>=4.9.0
+Pillow>=10.2.0
+
+# ---- Deep Learning (PyTorch 2.x Ecosystem) ----
+torch>=2.2.0
+torchvision>=0.17.0
+timm>=1.0.0               # Modern pretrained backbones: ConvNeXt, EfficientNetV2, SwinTransformerV2
+kornia>=0.7.2              # Differentiable augmentations, JPEG simulation, color transforms
+einops>=0.7.0              # Clean tensor reshaping for attention mechanisms
+segmentation-models-pytorch>=0.3.3  # U-Net++, FPN, DeepLabV3+ architectures
+lpips>=0.1.4               # Learned Perceptual Image Patch Similarity (perceptual loss)
+pytorch-msssim>=1.0.0      # Differentiable MS-SSIM loss for training
+FrEIA>=0.2                 # Framework for Easily Invertible Architectures (Invertible Neural Networks)
+
+# ---- Audio Processing ----
+librosa>=0.10.1
+soundfile>=0.12.1
+torchaudio>=2.2.0          # PyTorch-native audio processing
+
+# ---- Video Processing ----
+av>=12.0.0                 # PyAV: fast FFmpeg-based video I/O (H.264/H.265 codec access)
+ffmpeg-python>=0.2.0       # FFmpeg pipeline builder
+
+# ---- Wavelet Transforms ----
+PyWavelets>=1.5.0
+
+# ---- Cryptography ----
+pycryptodome>=3.20.0       # AES-256-GCM (authenticated encryption)
+
+# ---- Metrics & Evaluation ----
+scikit-image>=0.22.0       # SSIM, PSNR
+torchmetrics>=1.3.0        # GPU-accelerated metrics
+
+# ---- Visualization & Tracking ----
+matplotlib>=3.8.0
+seaborn>=0.13.0
+wandb>=0.16.0              # Experiment tracking with dashboards
+
+# ---- Web Backend ----
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.9
+aiofiles>=23.2.1
+
+# ---- Data Augmentation & Training ----
+albumentations>=1.4.0      # Advanced image augmentations for robust training
+
+# ---- Utilities ----
+tqdm>=4.66.0
+pyyaml>=6.0.1
+requests>=2.31.0
+rich>=13.7.0               # Beautiful terminal output

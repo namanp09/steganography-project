@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.env
+uploads/
+outputs/
+models/checkpoints/*.pth
+data/images/
+data/audio/
+data/video/
+node_modules/
+frontend/dist/
+.DS_Store
+*.log
+wandb/

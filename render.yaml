@@ -4,6 +4,9 @@ services:
     runtime: docker
     plan: free
     healthCheckPath: /health
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: PORT
-        value: 8000
+        value: "8000"
+      - key: PYTHONUNBUFFERED
+        value: "1"

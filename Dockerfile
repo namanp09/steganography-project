@@ -37,4 +37,4 @@ RUN mkdir -p uploads outputs data/images data/audio data/video models/checkpoint
 
 EXPOSE 8000
 
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}

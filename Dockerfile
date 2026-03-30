@@ -1,6 +1,14 @@
+# Stage 1: Build frontend
+FROM node:20-slim AS frontend-build
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm install
+COPY frontend/ .
+RUN npm run build
+
+# Stage 2: Python backend + built frontend
 FROM python:3.10-slim
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1-mesa-glx \
     libglib2.0-0 \
@@ -9,28 +17,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender-dev \
     libsndfile1 \
     ffmpeg \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Node.js for frontend build
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install Python dependencies first (better caching)
+# Install Python dependencies
 COPY requirements-deploy.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project
-COPY . .
+# Copy project source
+COPY config/ config/
+COPY core/ core/
+COPY api/ api/
 
-# Build frontend
-WORKDIR /app/frontend
-RUN npm install && npm run build
-
-WORKDIR /app
+# Copy built frontend from stage 1
+COPY --from=frontend-build /app/frontend/dist frontend/dist
 
 # Create necessary directories
 RUN mkdir -p uploads outputs data/images data/audio data/video models/checkpoints

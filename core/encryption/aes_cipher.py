@@ -8,9 +8,8 @@ Key derivation via PBKDF2-HMAC-SHA256 with OWASP-recommended iterations.
 
 import os
 import struct
+import hashlib
 from Crypto.Cipher import AES
-from Crypto.Protocol.KDF import PBKDF2
-from Crypto.Hash import SHA256, HMAC
 
 from config.settings import ENCRYPTION
 
@@ -23,12 +22,12 @@ class AESCipher:
 
     def _derive_key(self, salt: bytes) -> bytes:
         """Derive a 256-bit key from password using PBKDF2-HMAC-SHA256."""
-        return PBKDF2(
+        return hashlib.pbkdf2_hmac(
+            "sha256",
             self.password,
             salt,
-            dkLen=ENCRYPTION.key_size,
-            count=ENCRYPTION.pbkdf2_iterations,
-            prf=lambda p, s: HMAC.new(p, s, SHA256).digest(),
+            ENCRYPTION.pbkdf2_iterations,
+            dklen=ENCRYPTION.key_size,
         )
 
     def encrypt(self, plaintext: bytes) -> bytes:

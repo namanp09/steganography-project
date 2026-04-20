@@ -3,6 +3,7 @@ Image DWT Steganography — Transform Domain Method.
 
 Embeds data in Discrete Wavelet Transform detail coefficients.
 Uses multi-level decomposition with fixed-strength QIM for reliable extraction.
+Skips coefficients whose underlying pixel regions would clip during inverse DWT.
 """
 
 import numpy as np
@@ -36,6 +37,27 @@ class ImageDWT:
         total_bits = coeff_h * coeff_w
         return (total_bits // 8) - 4
 
+    def _safe_indices_mask(self, channel: np.ndarray, subband_shape: tuple) -> np.ndarray:
+        """Mask of subband coefficients whose underlying pixel block has embedding headroom."""
+        step = 2 ** self.level
+        sh, sw = subband_shape
+        mask = np.zeros(sh * sw, dtype=bool)
+        margin = max(self.alpha * 2, 20.0)
+        lo, hi = margin, 255.0 - margin
+        for i in range(sh):
+            y0 = i * step
+            y1 = min(y0 + step, channel.shape[0])
+            for j in range(sw):
+                x0 = j * step
+                x1 = min(x0 + step, channel.shape[1])
+                region = channel[y0:y1, x0:x1]
+                if region.size == 0:
+                    continue
+                m = float(region.mean())
+                if lo < m < hi:
+                    mask[i * sw + j] = True
+        return mask
+
     def encode(self, cover_image: np.ndarray, secret_data: bytes) -> np.ndarray:
         """Embed data in DWT detail coefficients using QIM."""
         image = cover_image.copy()
@@ -47,21 +69,16 @@ class ImageDWT:
             channel = image.astype(np.float64)
             ycrcb = None
 
-        # Multi-level DWT
         coeffs = pywt.wavedec2(channel, self.wavelet, level=self.level)
-
-        # Target subband at deepest detail level
         detail_coeffs = list(coeffs[1])
         target = detail_coeffs[self._subband_idx].copy()
         flat = target.flatten()
 
-        # Prepare payload
         length_header = len(secret_data).to_bytes(4, "big")
         payload = length_header + secret_data
         bits = np.unpackbits(np.frombuffer(payload, dtype=np.uint8))
 
-        if len(bits) > len(flat):
-            raise ValueError(f"Data too large: {len(bits)} bits, {len(flat)} coefficients")
+        safe_mask = self._safe_indices_mask(channel, target.shape)
 
         indices = np.arange(len(flat))
         if self.seed is not None:
@@ -69,27 +86,33 @@ class ImageDWT:
             rng.shuffle(indices)
 
         delta = self.alpha
+        bit_idx = 0
 
-        # QIM embedding: quantize to odd/even multiples of delta
-        for i, bit in enumerate(bits):
-            idx = indices[i]
-            coeff = flat[idx]
+        for pos in indices:
+            if bit_idx >= len(bits):
+                break
+            if not safe_mask[pos]:
+                continue
+            coeff = flat[pos]
+            bit = int(bits[bit_idx])
             q = int(np.floor(coeff / delta))
-            bit = int(bit)
-
             if (q % 2) != bit:
-                # Snap to nearest correct-parity level
                 if ((q + 1) % 2) == bit:
-                    flat[idx] = (q + 1) * delta + delta / 2
+                    flat[pos] = (q + 1) * delta + delta / 2
                 else:
-                    flat[idx] = q * delta + delta / 2
+                    flat[pos] = q * delta + delta / 2
             else:
-                flat[idx] = q * delta + delta / 2
+                flat[pos] = q * delta + delta / 2
+            bit_idx += 1
+
+        if bit_idx < len(bits):
+            raise ValueError(
+                f"Not enough safe coefficients: needed {len(bits)}, got {bit_idx}"
+            )
 
         detail_coeffs[self._subband_idx] = flat.reshape(target.shape)
         coeffs[1] = tuple(detail_coeffs)
 
-        # Inverse DWT
         reconstructed = pywt.waverec2(coeffs, self.wavelet)
         reconstructed = reconstructed[:channel.shape[0], :channel.shape[1]]
 
@@ -111,6 +134,8 @@ class ImageDWT:
         target = detail_coeffs[self._subband_idx]
         flat = target.flatten()
 
+        safe_mask = self._safe_indices_mask(channel, target.shape)
+
         indices = np.arange(len(flat))
         if self.seed is not None:
             rng = np.random.default_rng(self.seed)
@@ -119,15 +144,15 @@ class ImageDWT:
         delta = self.alpha
         all_bits = []
 
-        for i in range(len(flat)):
-            idx = indices[i]
-            coeff = flat[idx]
+        for pos in indices:
+            if not safe_mask[pos]:
+                continue
+            coeff = flat[pos]
             q = int(np.floor(coeff / delta))
             all_bits.append(q % 2)
 
         all_bits = np.array(all_bits, dtype=np.uint8)
 
-        # Read length header
         header_bytes = np.packbits(all_bits[:32]).tobytes()
         length = int.from_bytes(header_bytes[:4], "big")
 

@@ -44,6 +44,12 @@ class ImageDCT:
         total_bits = n_blocks * bits_per_block
         return (total_bits // 8) - 4
 
+    def _is_safe_block(self, block_raw: np.ndarray) -> bool:
+        """A block is safe for embedding if it has enough headroom to avoid uint8 clipping."""
+        margin = max(self.alpha, 20.0)
+        m = float(block_raw.mean())
+        return margin < m < (255.0 - margin)
+
     def encode(self, cover_image: np.ndarray, secret_data: bytes) -> np.ndarray:
         """Embed data in DCT mid-frequency coefficients using QIM."""
         image = cover_image.copy()
@@ -71,7 +77,10 @@ class ImageDCT:
         for y, x in coords:
             if bit_idx >= len(bits):
                 break
-            block = channel[y:y+8, x:x+8] - 128.0
+            block_raw = channel[y:y+8, x:x+8]
+            if not self._is_safe_block(block_raw):
+                continue
+            block = block_raw - 128.0
             dct_block = cv2.dct(block)
 
             for pos in self.embed_positions:
@@ -80,16 +89,12 @@ class ImageDCT:
                 coeff = dct_block[pos[0], pos[1]]
                 bit = int(bits[bit_idx])
 
-                # QIM: quantize to odd (bit=1) or even (bit=0) multiple of delta
                 q = int(np.floor(coeff / delta))
                 if (q % 2) != bit:
-                    # Snap to nearest correct-parity quantization level
-                    candidate_up = (q + 1) * delta + delta / 2
-                    candidate_down = q * delta + delta / 2
                     if ((q + 1) % 2) == bit:
-                        dct_block[pos[0], pos[1]] = candidate_up
+                        dct_block[pos[0], pos[1]] = (q + 1) * delta + delta / 2
                     else:
-                        dct_block[pos[0], pos[1]] = candidate_down
+                        dct_block[pos[0], pos[1]] = q * delta + delta / 2
                 else:
                     dct_block[pos[0], pos[1]] = q * delta + delta / 2
 
@@ -122,7 +127,10 @@ class ImageDCT:
         all_bits = []
 
         for y, x in coords:
-            block = channel[y:y+8, x:x+8] - 128.0
+            block_raw = channel[y:y+8, x:x+8]
+            if not self._is_safe_block(block_raw):
+                continue
+            block = block_raw - 128.0
             dct_block = cv2.dct(block)
 
             for pos in self.embed_positions:
@@ -132,7 +140,6 @@ class ImageDCT:
 
         all_bits = np.array(all_bits, dtype=np.uint8)
 
-        # Read length header (first 32 bits)
         header_bytes = np.packbits(all_bits[:32]).tobytes()
         length = int.from_bytes(header_bytes[:4], "big")
 

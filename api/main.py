@@ -100,9 +100,9 @@ def get_audio_method(method: str, seed: Optional[int] = None):
 
 def get_video_method(method: str, seed: Optional[int] = None):
     methods = {
-        "lsb": VideoLSB(num_bits=2, embed_every_n=2, seed=seed),
-        "dct": VideoDCT(alpha=10.0, embed_every_n=2, seed=seed),
-        "dwt": VideoDWT(wavelet="haar", level=2, alpha=0.1, embed_every_n=2, seed=seed),
+        "lsb": VideoLSB(num_bits=2, embed_every_n=2, use_motion_comp=False, seed=seed),
+        "dct": VideoDCT(alpha=10.0, embed_every_n=2, use_motion_comp=False, seed=seed),
+        "dwt": VideoDWT(wavelet="haar", level=2, alpha=0.1, embed_every_n=2, use_motion_comp=False, seed=seed),
     }
     if method not in methods:
         raise HTTPException(400, f"Unknown method: {method}. Available: {list(methods)}")

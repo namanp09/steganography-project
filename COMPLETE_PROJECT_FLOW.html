@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steganography Project - Complete Flow Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 5px;
+        }
+
+        h1 {
+            color: #1f4788;
+            border-bottom: 4px solid #1f4788;
+            padding-bottom: 15px;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        h2 {
+            color: #1f4788;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-left: 10px;
+            border-left: 4px solid #1f4788;
+            font-size: 1.6em;
+        }
+
+        h3 {
+            color: #2e5fa3;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 0.95em;
+            line-height: 1.8;
+        }
+
+        .metadata {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #2e5fa3;
+        }
+
+        p {
+            margin-bottom: 10px;
+            text-align: justify;
+        }
+
+        .code-block {
+            background-color: #f5f5f5;
+            border-left: 4px solid #2e5fa3;
+            padding: 15px;
+            margin: 15px 0;
+            overflow-x: auto;
+            border-radius: 3px;
+        }
+
+        code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #333;
+            background-color: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        pre {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 0.95em;
+        }
+
+        th {
+            background-color: #1f4788;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f0f0f0;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+            margin-bottom: 10px;
+        }
+
+        li {
+            margin-bottom: 5px;
+        }
+
+        .highlight {
+            background-color: #fff3cd;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .box {
+            background-color: #e8f4f8;
+            border-left: 4px solid #2e5fa3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 3px;
+        }
+
+        .security-box {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 3px;
+        }
+
+        .page-break {
+            page-break-after: always;
+            margin: 40px 0;
+            border-top: 2px dashed #ccc;
+            padding-top: 40px;
+        }
+
+        .toc {
+            background-color: #f0f0f0;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc a {
+            color: #2e5fa3;
+            text-decoration: none;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #ddd;
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .section-number {
+            color: #1f4788;
+            font-weight: bold;
+        }
+
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+                padding: 0;
+                margin: 0;
+            }
+
+            .page-break {
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- TITLE PAGE -->
+        <h1>AI-Enhanced Multi-Modal Secure Steganography System</h1>
+        <p style="text-align: center; font-size: 1.3em; color: #2e5fa3; margin: 20px 0;">Complete Project Flow Documentation</p>
+
+        <div class="metadata">
+            <p><strong>Institution:</strong> Delhi Technological University</p>
+            <p><strong>Department:</strong> Computer Science Engineering</p>
+            <p><strong>Project Type:</strong> B.Tech Major Project (Project-II), AY 2025-26</p>
+            <p><strong>Team:</strong> Naman Padiyar | Nipun Rawat | Piyush Thalwal</p>
+            <p><strong>Generated:</strong> April 21, 2026</p>
+        </div>
+
+        <div class="page-break"></div>
+
+        <!-- SECTION 1 -->
+        <h2><span class="section-number">1.</span> HIGH-LEVEL OVERVIEW</h2>
+        <p>This is a B.Tech major project that implements <strong>multi-modal steganography</strong> (hiding encrypted data in images, audio, and video) using both classical algorithms and deep learning. The primary focus is <strong>video steganography</strong> with 6 encoding methods across 3 modalities.</p>
+
+        <!-- SECTION 2 -->
+        <h2><span class="section-number">2.</span> SYSTEM ARCHITECTURE</h2>
+        <div class="code-block">
+            <pre>User ↓
+React Frontend (Vite + Tailwind)
+        ↓
+FastAPI Backend (/api/image, /api/audio, /api/video endpoints)
+        ↓
+Encryption Layer (AES-256-GCM)
+        ↓
+Core Steganography Algorithms
+        ↓
+Output Media + Quality Metrics</pre>
+        </div>
+
+        <!-- SECTION 3 -->
+        <h2><span class="section-number">3.</span> COMPLETE DATA FLOW</h2>
+
+        <h3>ENCODING (HIDING) PROCESS:</h3>
+        <ol>
+            <li><strong>User Input</strong> → Message text + Cover media + Password + Method choice</li>
+            <li><strong>Encryption</strong> →
+                <ul style="margin-top: 5px;">
+                    <li>Generate random salt (16 bytes)</li>
+                    <li>Derive key from password: PBKDF2-HMAC-SHA256 (600k iterations)</li>
+                    <li>Encrypt message with AES-256-GCM (confidentiality + integrity)</li>
+                    <li>Output: <code>[salt(16B) | nonce(12B) | auth_tag(16B) | ciphertext]</code></li>
+                </ul>
+            </li>
+            <li><strong>Steganography</strong> → Embed encrypted bytes using selected method:
+                <ul style="margin-top: 5px;">
+                    <li><strong>LSB:</strong> Hide in least significant bits</li>
+                    <li><strong>DCT:</strong> Hide in discrete cosine transform coefficients</li>
+                    <li><strong>DWT:</strong> Hide in wavelet transform detail coefficients</li>
+                    <li><strong>Deep Learning:</strong> U-Net, HiDDeN, INN neural networks</li>
+                </ul>
+            </li>
+            <li><strong>For Video:</strong> Extract frames → Optical flow → Stable regions → Temporal consistency</li>
+            <li><strong>Output:</strong> Stego media file + Quality metrics</li>
+        </ol>
+
+        <h3>DECODING (REVEALING) PROCESS:</h3>
+        <ol>
+            <li><strong>User Input</strong> → Stego media + Password + Same method</li>
+            <li><strong>Extract Encrypted Data</strong> → Reverse steganography process</li>
+            <li><strong>Decryption</strong> →
+                <ul style="margin-top: 5px;">
+                    <li>Parse salt, nonce, auth_tag</li>
+                    <li>Derive same key from password + salt</li>
+                    <li>Decrypt with AES-256-GCM (integrity check)</li>
+                </ul>
+            </li>
+            <li><strong>Output:</strong> Original message (or error if tampered)</li>
+        </ol>
+
+        <div class="page-break"></div>
+
+        <!-- SECTION 4 -->
+        <h2><span class="section-number">4.</span> AVAILABLE METHODS & IMPLEMENTATIONS</h2>
+
+        <h3>IMAGE STEGANOGRAPHY (/core/image/)</h3>
+        <table>
+            <tr>
+                <th>Method</th>
+                <th>File</th>
+                <th>Technique</th>
+                <th>Key Feature</th>
+            </tr>
+            <tr>
+                <td><strong>LSB</strong></td>
+                <td>lsb.py</td>
+                <td>Embed in pixel LSBs</td>
+                <td>Randomized pixel order via seed</td>
+            </tr>
+            <tr>
+                <td><strong>DCT</strong></td>
+                <td>dct_stego.py</td>
+                <td>Quantization Index Modulation on 8×8 blocks</td>
+                <td>Adaptive strength (α=10)</td>
+            </tr>
+            <tr>
+                <td><strong>DWT</strong></td>
+                <td>dwt_stego.py</td>
+                <td>Multi-level Haar/Daubechies wavelet</td>
+                <td>Embed in detail coefficients</td>
+            </tr>
+        </table>
+
+        <h3>AUDIO STEGANOGRAPHY (/core/audio/)</h3>
+        <table>
+            <tr>
+                <th>Method</th>
+                <th>File</th>
+                <th>Technique</th>
+                <th>Key Feature</th>
+            </tr>
+            <tr>
+                <td><strong>LSB</strong></td>
+                <td>lsb.py</td>
+                <td>Embed in PCM sample LSBs</td>
+                <td>16-bit audio samples</td>
+            </tr>
+            <tr>
+                <td><strong>DWT</strong></td>
+                <td>dwt_stego.py</td>
+                <td>Daubechies-4 wavelet (4 levels)</td>
+                <td>Adaptive strength (α=0.02)</td>
+            </tr>
+        </table>
+
+        <h3>VIDEO STEGANOGRAPHY (/core/video/) — PRIMARY FOCUS</h3>
+        <table>
+            <tr>
+                <th>Method</th>
+                <th>File</th>
+                <th>Technique</th>
+                <th>Key Feature</th>
+            </tr>
+            <tr>
+                <td><strong>LSB</strong></td>
+                <td>lsb.py</td>
+                <td>Frame-by-frame LSB embedding</td>
+                <td>Motion compensation optional</td>
+            </tr>
+            <tr>
+                <td><strong>DCT</strong></td>
+                <td>dct_stego.py</td>
+                <td>DCT on each frame + temporal awareness</td>
+                <td>8×8 block-based</td>
+            </tr>
+            <tr>
+                <td><strong>DWT</strong></td>
+                <td>dwt_stego.py</td>
+                <td>Wavelet per frame + frame selection</td>
+                <td>Skips every Nth frame</td>
+            </tr>
+        </table>
+
+        <div class="box">
+            <h3>Video-Specific Innovations:</h3>
+            <ul>
+                <li><strong>Optical Flow</strong> (Farneback): Identifies low-motion regions</li>
+                <li><strong>Frame Selection:</strong> Skip frames for temporal coherence</li>
+                <li><strong>Temporal Consistency:</strong> No visible flicker across frames</li>
+                <li><strong>Codec Robustness:</strong> Handles H.264/H.265 compression</li>
+            </ul>
+        </div>
+
+        <div class="page-break"></div>
+
+        <!-- SECTION 5 -->
+        <h2><span class="section-number">5.</span> FILES STRUCTURE & ROLES</h2>
+        <div class="code-block">
+            <pre>steganography-project/
+├── config/
+│   └── settings.py               # Global config
+├── core/                         # Core algorithms (classical methods)
+│   ├── encryption/
+│   │   ├── aes_cipher.py        # AES-256-GCM + PBKDF2
+│   │   └── integrity.py         # SHA-256 hashing
+│   ├── image/
+│   │   ├── lsb.py               # Image LSB
+│   │   ├── dct_stego.py         # Image DCT
+│   │   └── dwt_stego.py         # Image DWT
+│   ├── audio/
+│   │   ├── lsb.py               # Audio LSB
+│   │   └── dwt_stego.py         # Audio DWT
+│   ├── video/
+│   │   ├── frame_utils.py       # Frame extraction, optical flow
+│   │   ├── lsb.py               # Video LSB + motion
+│   │   ├── dct_stego.py         # Video DCT + temporal
+│   │   └── dwt_stego.py         # Video DWT + frames
+│   └── metrics/
+│       └── evaluate.py          # PSNR, SSIM, LPIPS, BER
+├── models/                       # Deep Learning (PyTorch)
+│   ├── layers.py                # CBAM, ConvNeXt, noise
+│   ├── losses.py                # Loss functions
+│   ├── train.py                 # Training pipeline
+│   ├── unet/
+│   │   └── encoder_decoder.py   # Attention U-Net++
+│   ├── hidden/
+│   │   └── hidden_model.py      # HiDDeN + WGAN-GP
+│   └── invertible/
+│       └── inn_model.py         # INN with wavelet
+├── api/
+│   └── main.py                  # FastAPI backend
+├── frontend/                     # React + Vite + Tailwind
+├── scripts/
+│   ├── run_demo.py              # CLI demo
+│   └── download_test_data.py    # Dataset downloader
+└── data/                        # Test media files</pre>
+        </div>
+
+        <!-- SECTION 6 -->
+        <h2><span class="section-number">6.</span> DATASET STRUCTURE</h2>
+        <p><strong>Where Data Lives:</strong> /data/ directory</p>
+        <ul>
+            <li><strong>Images:</strong> data/images/ — PNG, JPG, BMP test images</li>
+            <li><strong>Audio:</strong> data/audio/ — WAV files (16-bit PCM, 44.1 kHz)</li>
+            <li><strong>Videos:</strong> data/videos/ — MP4, AVI, MKV files</li>
+        </ul>
+
+        <p style="margin-top: 15px;"><strong>How Datasets Are Loaded:</strong></p>
+        <div class="code-block">
+            <pre>from models.train import StegoImageDataset, StegoVideoDataset
+
+# Image Dataset
+image_dataset = StegoImageDataset(
+    "data/images",
+    image_size=256,
+    transform=torchvision.transforms.Compose([...])
+)
+
+# Video Dataset
+video_dataset = StegoVideoDataset(
+    "data/videos",
+    frame_size=256,
+    temporal_window=5
+)
+
+loader = DataLoader(image_dataset, batch_size=8, shuffle=True)</pre>
+        </div>
+
+        <div class="page-break"></div>
+
+        <!-- SECTION 7 -->
+        <h2><span class="section-number">7.</span> TRAINING DEEP LEARNING MODELS</h2>
+
+        <h3>a) Attention U-Net++ (Image Focus)</h3>
+        <div class="code-block">
+            <pre>from models.unet import AttentionUNet++
+
+model = AttentionUNet++(
+    msg_length=128,
+    in_channels=3,
+    out_channels=3
+)</pre>
+        </div>
+        <ul>
+            <li><strong>Encoder-Decoder</strong> with dense skip connections</li>
+            <li><strong>CBAM attention</strong> for spatial feature selection</li>
+            <li><strong>ConvNeXt blocks</strong> for modern architecture</li>
+            <li><strong>Multi-scale message injection</strong> at different depths</li>
+        </ul>
+
+        <h3>b) HiDDeN Adversarial (Robustness)</h3>
+        <div class="code-block">
+            <pre>from models.hidden import HiDDeNSteganography, HiDDeNDiscriminator
+
+encoder = HiDDeNSteganography(msg_length=128)
+decoder = HiDDeNSteganography(msg_length=128, decoder=True)
+discriminator = HiDDeNDiscriminator()</pre>
+        </div>
+        <ul>
+            <li><strong>Encoder + Decoder + WGAN-GP Discriminator</strong></li>
+            <li><strong>Spectral normalization</strong> in discriminator</li>
+            <li><strong>Noise layer</strong> simulates: JPEG, Gaussian noise, crop, blur, codec</li>
+            <li><strong>Frequency loss</strong> to minimize spectral anomalies</li>
+        </ul>
+
+        <h3>c) Invertible Neural Network (INN)</h3>
+        <div class="code-block">
+            <pre>from models.invertible import InvertibleSteganography
+
+model = InvertibleSteganography(
+    msg_length=128,
+    use_temporal_attention=True
+)</pre>
+        </div>
+        <ul>
+            <li><strong>Normalizing flow</strong> with affine coupling layers</li>
+            <li><strong>Haar wavelet lifting</strong> for invertibility</li>
+            <li><strong>3D temporal attention</strong> for video</li>
+            <li><strong>Mathematically reversible:</strong> Perfect pixel recovery</li>
+        </ul>
+
+        <div class="page-break"></div>
+
+        <!-- SECTION 8 -->
+        <h2><span class="section-number">8.</span> TRAINING PIPELINE</h2>
+
+        <h3>Run Training:</h3>
+        <div class="code-block">
+            <pre>from models.train import train_hidden
+from torch.utils.data import DataLoader
+
+dataset = StegoImageDataset("data/images", image_size=256)
+loader = DataLoader(dataset, batch_size=8, shuffle=True)
+
+model = HiDDeNSteganography(msg_length=128)
+train_hidden(
+    model,
+    train_loader=loader,
+    val_loader=val_loader,
+    epochs=100,
+    device="cuda"
+)</pre>
+        </div>
+
+        <h3>Training Features:</h3>
+        <ul>
+            <li><strong>Mixed Precision (AMP):</strong> FP16 + FP32 for speed</li>
+            <li><strong>Scheduler:</strong> Cosine annealing with warm restarts</li>
+            <li><strong>WandB Integration:</strong> Real-time experiment tracking</li>
+            <li><strong>Multi-GPU:</strong> Data parallel training support</li>
+            <li><strong>Checkpointing:</strong> Save/resume best models</li>
+        </ul>
+
+        <h3>Loss Functions (Combined):</h3>
+        <div class="box">
+            <p style="text-align: center; font-weight: bold;">Total Loss = λ₁·MSE + λ₂·MS-SSIM + λ₃·LPIPS + λ₄·BCE(msg) + λ₅·Frequency + λ₆·WGAN-GP</p>
+        </div>
+        <ul>
+            <li><strong>MSE:</strong> Pixel-level fidelity</li>
+            <li><strong>MS-SSIM:</strong> Multi-scale structural similarity</li>
+            <li><strong>LPIPS:</strong> Deep perceptual loss</li>
+            <li><strong>BCE:</strong> Message recovery accuracy</li>
+            <li><strong>Frequency:</strong> Spectral flatness</li>
+            <li><strong>WGAN-GP:</strong> Adversarial training</li>
+        </ul>
+
+        <div class="page-break"></div>
+
+        <!-- SECTION 9 -->
+        <h2><span class="section-number">9.</span> TESTING & EVALUATION</h2>
+
+        <h3>Metrics Computed (/core/metrics/evaluate.py):</h3>
+        <table>
+            <tr>
+                <th>Metric</th>
+                <th>Target</th>
+                <th>Meaning</th>
+            </tr>
+            <tr>
+                <td><strong>PSNR</strong></td>
+                <td>> 35 dB</td>
+                <td>Peak Signal-to-Noise Ratio (higher = less distortion)</td>
+            </tr>
+            <tr>
+                <td><strong>SSIM</strong></td>
+                <td>> 0.97</td>
+                <td>Structural Similarity (1.0 = identical)</td>
+            </tr>
+            <tr>
+                <td><strong>MS-SSIM</strong></td>
+                <td>> 0.95</td>
+                <td>Multi-scale SSIM (perceptual quality)</td>
+            </tr>
+            <tr>
+                <td><strong>MSE</strong></td>
+                <td>< 10</td>
+                <td>Mean Squared Error</td>
+            </tr>
+            <tr>
+                <td><strong>SNR</strong></td>
+                <td>> 30 dB</td>
+                <td>Signal-to-Noise Ratio</td>
+            </tr>
+            <tr>
+                <td><strong>LPIPS</strong></td>
+                <td>< 0.05</td>
+                <td>Learned Perceptual Image Patch Similarity</td>
+            </tr>
+            <tr>
+                <td><strong>BER</strong></td>
+                <td>0%</td>
+                <td>Bit Error Rate (message corruption)</td>
+            </tr>
+        </table>
+
+        <h3>Test Flow:</h3>
+        <div class="code-block">
+            <pre>from core.metrics import compute_all_metrics
+
+stego_image = encoder.encode(cover_image, secret_data)
+metrics = compute_all_metrics(cover_image, stego_image)
+print(f"PSNR: {metrics['psnr']:.2f} dB")
+print(f"SSIM: {metrics['ssim']:.4f}")</pre>
+        </div>
+
+        <!-- SECTION 10 -->
+        <h2><span class="section-number">10.</span> API ENDPOINTS (FastAPI)</h2>
+        <p><strong>Backend running at:</strong> http://localhost:8000</p>
+
+        <h3>Endpoints:</h3>
+        <div class="code-block">
+            <pre>POST /api/image/encode       # Hide message in image
+POST /api/image/decode       # Extract message from image
+POST /api/audio/encode       # Hide message in audio
+POST /api/audio/decode       # Extract message from audio
+POST /api/video/encode       # Hide message in video
+POST /api/video/decode       # Extract message from video
+GET  /api/methods            # List available methods
+GET  /api/metrics            # Get evaluation results</pre>
+        </div>
+
+        <h3>Example Encode Request:</h3>
+        <div class="code-block">
+            <pre>curl -X POST http://localhost:8000/api/image/encode \
+  -F "cover=@input.jpg" \
+  -F "message=Secret" \
+  -F "password=mypassword" \
+  -F "method=dwt"</pre>
+        </div>
+
+        <div class="page-break"></div>
+
+        <!-- SECTION 11 -->
+        <h2><span class="section-number">11.</span> FRONTEND (React)</h2>
+        <p><strong>Running at:</strong> http://localhost:5173</p>
+
+        <h3>Pages:</h3>
+        <ul>
+            <li><strong>Image:</strong> Encode/Decode images with LSB/DCT/DWT/U-Net methods</li>
+            <li><strong>Audio:</strong> Encode/Decode audio with LSB/DWT</li>
+            <li><strong>Video:</strong> Encode/Decode video with LSB/DCT/DWT/INN/HiDDeN</li>
+            <li><strong>Metrics Dashboard:</strong> Visualize PSNR, SSIM, BER graphs</li>
+        </ul>
+
+        <h3>User Flow:</h3>
+        <ol>
+            <li>Select modality (Image/Audio/Video)</li>
+            <li>Upload cover media</li>
+            <li>Enter secret message</li>
+            <li>Enter password</li>
+            <li>Choose method</li>
+            <li>Click "Encode" → Download stego media + metrics</li>
+            <li>To decode: Upload stego media + enter password</li>
+        </ol>
+
+        <!-- SECTION 12 -->
+        <h2><span class="section-number">12.</span> COMPLETE END-TO-END EXAMPLE</h2>
+
+        <h3>CLI Demo:</h3>
+        <div class="code-block">
+            <pre>#!/usr/bin/env python3
+# Run: python scripts/run_demo.py
+
+from core.image import ImageDWT
+from core.encryption import AESCipher
+from core.metrics import compute_all_metrics
+import cv2
+
+# 1. Read cover image
+cover = cv2.imread("data/images/test.jpg")
+
+# 2. Encrypt message
+cipher = AESCipher("mypassword")
+encrypted = cipher.encrypt_message("Secret message")
+
+# 3. Embed in image using DWT
+encoder = ImageDWT(wavelet="haar", level=2, alpha=5.0)
+stego = encoder.encode(cover, encrypted)
+
+# 4. Compute metrics
+metrics = compute_all_metrics(cover, stego)
+print(f"PSNR: {metrics['psnr']:.2f} dB")
+
+# 5. Save stego
+cv2.imwrite("output.jpg", stego)
+
+# 6. Extract & Decrypt
+extracted = encoder.decode(stego)
+decrypted_msg = cipher.decrypt_message(extracted)
+print(f"Recovered: {decrypted_msg}")</pre>
+        </div>
+
+        <div class="page-break"></div>
+
+        <!-- SECTION 13 -->
+        <h2><span class="section-number">13.</span> SECURITY PROPERTIES</h2>
+
+        <div class="security-box">
+            <table>
+                <tr>
+                    <th>Property</th>
+                    <th>Implementation</th>
+                </tr>
+                <tr>
+                    <td><strong>Confidentiality</strong></td>
+                    <td>AES-256-GCM (256-bit keys, authenticated)</td>
+                </tr>
+                <tr>
+                    <td><strong>Integrity</strong></td>
+                    <td>GCM authentication tag + SHA-256 hash</td>
+                </tr>
+                <tr>
+                    <td><strong>Key Derivation</strong></td>
+                    <td>PBKDF2-HMAC-SHA256 (600k iterations)</td>
+                </tr>
+                <tr>
+                    <td><strong>Imperceptibility</strong></td>
+                    <td>Adaptive embedding + perceptual DL losses</td>
+                </tr>
+                <tr>
+                    <td><strong>Anti-Steganalysis</strong></td>
+                    <td>HiDDeN adversarial + frequency optimization</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- SECTION 14 -->
+        <h2><span class="section-number">14.</span> RUN COMMANDS SUMMARY</h2>
+
+        <h3>Backend Setup</h3>
+        <div class="code-block">
+            <pre>cd steganography-project
+pip install -r requirements.txt
+python scripts/download_test_data.py
+uvicorn api.main:app --reload --port 8000</pre>
+        </div>
+
+        <h3>Frontend Setup</h3>
+        <div class="code-block">
+            <pre>cd frontend
+npm install
+npm run dev  # Access at http://localhost:5173</pre>
+        </div>
+
+        <h3>CLI Demo</h3>
+        <div class="code-block">
+            <pre>python scripts/run_demo.py</pre>
+        </div>
+
+        <h3>Train Deep Learning Models</h3>
+        <div class="code-block">
+            <pre>python -c "from models.train import train_hidden; ..."</pre>
+        </div>
+
+        <div class="page-break"></div>
+
+        <!-- CONCLUSION -->
+        <h2>CONCLUSION</h2>
+        <p style="font-size: 1.1em;">This is a sophisticated, production-ready steganography system! The classical methods (LSB/DCT/DWT) provide a baseline, while deep learning models push robustness to state-of-the-art levels with adversarial training and perceptual losses. The system seamlessly integrates encryption, steganography, and evaluation into a complete web-based platform with both CLI and GUI interfaces.</p>
+
+        <div class="security-box">
+            <h3>Key Achievements:</h3>
+            <ul>
+                <li>✅ Multi-modal support (Image, Audio, Video)</li>
+                <li>✅ 6 steganography methods (3 classical + 3 DL)</li>
+                <li>✅ Military-grade encryption (AES-256-GCM)</li>
+                <li>✅ PBKDF2 key derivation (OWASP compliant)</li>
+                <li>✅ Comprehensive evaluation metrics</li>
+                <li>✅ Production-ready FastAPI backend</li>
+                <li>✅ Interactive React frontend</li>
+                <li>✅ Adversarial robustness training</li>
+                <li>✅ Temporal consistency for video</li>
+                <li>✅ Codec-robust noise simulation</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p><strong>Date Generated:</strong> April 21, 2026</p>
+            <p><strong>Project Status:</strong> B.Tech Major Project (Project-II), AY 2025-26</p>
+            <p style="margin-top: 20px; color: #888;">
+                To save this as PDF: Open in browser → Right-click → Print → Save as PDF
+            </p>
+        </div>
+    </div>
+</body>
+</html>

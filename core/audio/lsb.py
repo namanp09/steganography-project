@@ -6,12 +6,13 @@ Supports multi-bit embedding and randomized sample selection.
 """
 
 import numpy as np
-import soundfile as sf
 from typing import Optional, Tuple
 
 
 class AudioLSB:
     """LSB steganography on 16-bit PCM audio."""
+
+    SCALE = 32768  # 2^15 — use power of 2 for exact float<->int16 round-trip
 
     def __init__(self, num_bits: int = 1, seed: Optional[int] = None):
         assert 1 <= num_bits <= 4
@@ -26,43 +27,37 @@ class AudioLSB:
         return indices
 
     def capacity(self, audio: np.ndarray) -> int:
-        """Return capacity in bytes."""
         total_bits = len(audio.flatten()) * self.num_bits
         return (total_bits // 8) - 4
+
+    def _to_uint16(self, audio: np.ndarray) -> np.ndarray:
+        if audio.dtype.kind == "f":
+            samples = np.clip(audio * self.SCALE, -self.SCALE, self.SCALE - 1).astype(np.int16)
+        else:
+            samples = audio.astype(np.int16)
+        return samples.view(np.uint16).flatten()
+
+    def _from_uint16(self, flat: np.ndarray, shape, dtype) -> np.ndarray:
+        samples = flat.view(np.int16).reshape(shape)
+        if np.issubdtype(dtype, np.floating):
+            return samples.astype(np.float64) / self.SCALE
+        return samples.astype(dtype)
 
     def encode(
         self, audio: np.ndarray, sr: int, secret_data: bytes
     ) -> Tuple[np.ndarray, int]:
-        """
-        Embed data into audio samples.
+        flat = self._to_uint16(audio)
 
-        Args:
-            audio: Audio samples as float64 array.
-            sr: Sample rate.
-            secret_data: Bytes to embed.
-
-        Returns:
-            (stego_audio, sample_rate)
-        """
-        # Convert to 16-bit integer representation
-        if audio.dtype == np.float64 or audio.dtype == np.float32:
-            samples = (audio * 32767).astype(np.int16)
-        else:
-            samples = audio.astype(np.int16)
-
-        flat = samples.flatten()
-
-        # Prepare payload
         length_header = len(secret_data).to_bytes(4, "big")
         payload = length_header + secret_data
         bits = np.unpackbits(np.frombuffer(payload, dtype=np.uint8))
 
         max_bits = len(flat) * self.num_bits
         if len(bits) > max_bits:
-            raise ValueError(f"Data too large: {len(bits)} bits needed, {max_bits} available")
+            raise ValueError(f"Data too large: {len(bits)} bits, {max_bits} available")
 
         order = self._get_sample_order(len(flat))
-        mask = np.int16(0xFFFF << self.num_bits)
+        clear_mask = np.uint16(~((1 << self.num_bits) - 1) & 0xFFFF)
 
         for i in range(0, len(bits), self.num_bits):
             chunk = bits[i : i + self.num_bits]
@@ -71,34 +66,23 @@ class AudioLSB:
             value = 0
             for b in chunk:
                 value = (value << 1) | int(b)
-
             sample_idx = order[i // self.num_bits]
-            flat[sample_idx] = (flat[sample_idx] & mask) | np.int16(value)
+            flat[sample_idx] = (flat[sample_idx] & clear_mask) | np.uint16(value)
 
-        stego = flat.reshape(samples.shape).astype(np.float64) / 32767.0
-        return stego, sr
+        return self._from_uint16(flat, audio.shape, audio.dtype), sr
 
     def decode(self, audio: np.ndarray) -> bytes:
-        """Extract data from stego audio."""
-        if audio.dtype == np.float64 or audio.dtype == np.float32:
-            samples = (audio * 32767).astype(np.int16)
-        else:
-            samples = audio.astype(np.int16)
-
-        flat = samples.flatten()
+        flat = self._to_uint16(audio)
         order = self._get_sample_order(len(flat))
-        lsb_mask = np.int16((1 << self.num_bits) - 1)
+        lsb_mask = np.uint16((1 << self.num_bits) - 1)
 
         all_bits = []
         for i in range(len(flat)):
-            idx = order[i]
-            val = int(flat[idx] & lsb_mask)
+            val = int(flat[order[i]] & lsb_mask)
             for shift in range(self.num_bits - 1, -1, -1):
                 all_bits.append((val >> shift) & 1)
 
         all_bits = np.array(all_bits, dtype=np.uint8)
-
-        # Read length
         header = np.packbits(all_bits[:32]).tobytes()
         length = int.from_bytes(header[:4], "big")
 

@@ -95,32 +95,21 @@ def reconstruct_video(
     frames: List[np.ndarray],
     output_path: str,
     fps: float = 30.0,
-    codec: str = "libx264",
-    crf: int = 18,
 ) -> str:
     """
-    Reconstruct video from frames using PyAV with H.264 encoding.
-
-    Args:
-        frames: List of BGR numpy arrays.
-        output_path: Output video file path.
-        fps: Frames per second.
-        codec: Video codec (libx264 for H.264, libx265 for H.265).
-        crf: Constant Rate Factor (lower = higher quality, 18 is visually lossless).
-
-    Returns:
-        Output path.
+    Reconstruct video from frames using lossless H.264 RGB encoding.
+    Lossless is required to preserve LSB steganographic data.
     """
     if not HAS_AV:
         return _reconstruct_video_cv2(frames, output_path, fps)
 
     h, w = frames[0].shape[:2]
     container = av.open(output_path, mode="w")
-    stream = container.add_stream(codec, rate=int(fps))
+    stream = container.add_stream("libx264rgb", rate=int(fps))
     stream.width = w
     stream.height = h
-    stream.pix_fmt = "yuv420p"
-    stream.options = {"crf": str(crf)}
+    stream.pix_fmt = "rgb24"
+    stream.options = {"crf": "0", "preset": "ultrafast"}
 
     for frame_np in frames:
         frame = av.VideoFrame.from_ndarray(frame_np, format="bgr24")

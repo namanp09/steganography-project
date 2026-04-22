@@ -9,6 +9,7 @@ const METHODS = [
   { id: 'lsb', label: 'LSB', desc: 'Least Significant Bit (baseline)' },
   { id: 'dct', label: 'DCT', desc: 'Discrete Cosine Transform + QIM' },
   { id: 'dwt', label: 'DWT', desc: 'Discrete Wavelet Transform' },
+  { id: 'gan', label: 'GAN', desc: 'Adaptive Cost Learning GAN (modern)' },
 ]
 
 export default function ImagePage() {
@@ -107,7 +108,7 @@ export default function ImagePage() {
           {/* Method Selection */}
           <div>
             <label className="text-sm font-medium text-gray-300">Method</label>
-            <div className="grid grid-cols-3 gap-2 mt-1">
+            <div className="grid grid-cols-2 gap-2 mt-1">
               {METHODS.map(({ id, label, desc }) => (
                 <button
                   key={id}

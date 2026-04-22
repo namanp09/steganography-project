@@ -101,6 +101,68 @@ class MetricsConfig:
     target_lpips: float = 0.05       # Perceptual similarity target: <0.05
 
 
+@dataclass
+class TextCompressionConfig:
+    """Configuration for text compression pipeline."""
+    use_transformer: bool = True     # Use transformer-based compression
+    vocab_size: int = 256            # Character-level
+    d_model: int = 128               # Transformer embedding dim
+    nhead: int = 4                   # Attention heads
+    num_layers: int = 2              # Transformer layers
+
+
+@dataclass
+class ImageGANConfig:
+    """Configuration for Image GAN steganography."""
+    message_bits: int = 128
+    base_channels: int = 32
+    image_size: int = 64
+    lambda_gp: float = 10.0          # Gradient penalty coefficient
+    n_critic_steps: int = 5          # Discriminator steps per generator step
+
+
+@dataclass
+class AudioGANConfig:
+    """Configuration for Audio GAN steganography."""
+    message_bits: int = 128
+    base_channels: int = 32
+    freq_bins: int = 128             # STFT frequency bins (reduced for speed)
+    n_mels: int = 64                 # Mel spectrogram bins
+    n_fft: int = 1024
+    hop_length: int = 256
+    lambda_gp: float = 10.0
+
+
+@dataclass
+class VideoGANConfig:
+    """Configuration for Video GAN steganography."""
+    message_bits: int = 128
+    base_channels: int = 16
+    temporal_window: int = 5
+    frame_size: int = 64
+    lambda_gp: float = 10.0
+    lambda_temporal: float = 0.1     # Temporal consistency loss
+
+
+@dataclass
+class GANTrainingConfig:
+    """GAN-specific training parameters."""
+    batch_size: int = 8
+    learning_rate_g: float = 1e-4
+    learning_rate_d: float = 1e-4
+    weight_decay: float = 1e-5
+    epochs: int = 100
+    # Loss weights
+    lambda_image: float = 1.0
+    lambda_message: float = 10.0
+    lambda_adversarial: float = 0.01
+    lambda_gp: float = 10.0
+    lambda_frequency: float = 0.1
+    # Scheduling
+    scheduler: str = "cosine"
+    use_amp: bool = True
+
+
 # Singleton instances
 PATHS = PathConfig()
 ENCRYPTION = EncryptionConfig()
@@ -109,3 +171,8 @@ AUDIO_STEGO = AudioStegoConfig()
 VIDEO_STEGO = VideoStegoConfig()
 TRAINING = TrainingConfig()
 METRICS = MetricsConfig()
+TEXT_COMPRESSION = TextCompressionConfig()
+IMAGE_GAN = ImageGANConfig()
+AUDIO_GAN = AudioGANConfig()
+VIDEO_GAN = VideoGANConfig()
+GAN_TRAINING = GANTrainingConfig()

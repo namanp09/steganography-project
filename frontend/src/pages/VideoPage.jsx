@@ -8,6 +8,7 @@ const METHODS = [
   { id: 'lsb', label: 'LSB', desc: 'Frame-level LSB + motion compensation' },
   { id: 'dct', label: 'DCT', desc: 'DCT on frames with temporal awareness' },
   { id: 'dwt', label: 'DWT', desc: 'DWT with frame selection' },
+  { id: 'gan', label: 'GAN', desc: 'Spatio-Temporal GAN (modern)' },
 ]
 
 export default function VideoPage() {
@@ -90,7 +91,7 @@ export default function VideoPage() {
 
         <div>
           <label className="text-sm font-medium text-gray-300">Method</label>
-          <div className="grid grid-cols-3 gap-2 mt-1">
+          <div className="grid grid-cols-2 gap-2 mt-1">
             {METHODS.map(({ id, label, desc }) => (
               <button key={id} onClick={() => setMethod(id)}
                 className={`p-3 rounded-xl border text-left transition-all ${

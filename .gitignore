@@ -3,7 +3,7 @@ __pycache__/
 .env
 uploads/
 outputs/
-models/checkpoints/*.pth
+models/checkpoints/**/*.pth
 data/images/
 data/audio/
 data/video/

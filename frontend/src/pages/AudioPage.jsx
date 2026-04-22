@@ -7,6 +7,7 @@ import { encodeSteganography, decodeSteganography } from '../utils/api'
 const METHODS = [
   { id: 'lsb', label: 'LSB', desc: 'Audio sample LSB' },
   { id: 'dwt', label: 'DWT', desc: 'Wavelet transform (Daubechies-4)' },
+  { id: 'gan', label: 'GAN', desc: 'Spectrogram GAN + psychoacoustic masking' },
 ]
 
 export default function AudioPage() {

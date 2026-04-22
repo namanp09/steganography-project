@@ -44,6 +44,7 @@ os.environ.setdefault("MKL_NUM_THREADS", "1")
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset, random_split
+from tqdm.auto import tqdm
 
 from config.settings import GAN_TRAINING, IMAGE_GAN, PATHS, AUDIO_GAN, VIDEO_GAN
 from models.audio_gan import AudioGANSteganography
@@ -87,6 +88,61 @@ def _resolve_device(choice: str) -> torch.device:
 def _mps_ok() -> bool:
     b = getattr(torch.backends, "mps", None)
     return b is not None and b.is_available()
+
+
+def _epoch_range(epochs: int, no_tqdm: bool):
+    """Outer progress: time remaining in `[elapsed<remaining]` is for the **whole** training run (all epochs)."""
+    r = range(1, epochs + 1)
+    if no_tqdm:
+        return r
+    return tqdm(
+        r,
+        desc="All epochs (run)",
+        total=epochs,
+        unit="ep",
+        mininterval=0.3,
+        position=0,
+        leave=True,
+        dynamic_ncols=True,
+    )
+
+
+def _batch_pbar(
+    loader: DataLoader,
+    *,
+    no_tqdm: bool,
+    epoch: int,
+    epochs: int,
+    name: str,
+    nested: bool = False,
+) -> DataLoader:
+    if no_tqdm:
+        return loader
+    return tqdm(
+        loader,
+        desc=f"Batches {epoch}/{epochs} [{name}]",
+        leave=bool(nested),
+        mininterval=0.3,
+        dynamic_ncols=True,
+        position=1 if nested else 0,
+    )
+
+
+def _out(log_path: str | None, message: str) -> None:
+    """Print to stdout and optionally append the same line to a file (for `tail` in another Colab cell)."""
+    print(message, flush=True)
+    if not log_path:
+        return
+    try:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(message + "\n")
+    except OSError as e:
+        print(f"(log-file write failed: {e})", flush=True)
+
+
+def _log_path_arg(args: argparse.Namespace) -> str | None:
+    p = getattr(args, "log_file", None) or ""
+    return p.strip() or None
 
 
 def _autocast_ctx(device: torch.device, use_amp: bool):
@@ -251,15 +307,21 @@ def _train_image(
 ) -> Path:
     torch.manual_seed(args.seed)
     random.seed(args.seed)
+    log = _log_path_arg(args)
 
     total = _pool_size_for_args(args)
+    _out(
+        log,
+        f"Building {total} synthetic image samples (can take a few minutes; no epoch lines until this finishes)…",
+    )
     ds = _make_synthetic_image_tensors(
         total, IMAGE_GAN.image_size, IMAGE_GAN.message_bits
     )
     train_l, val_l, n_t, n_v = _make_train_val_loaders(ds, args, device)
-    print(
+    _out(
+        log,
         f"[image] size={IMAGE_GAN.image_size} base_ch={IMAGE_GAN.base_channels} "
-        f"train={n_t} val={n_v} batch={args.batch}"
+        f"train={n_t} val={n_v} batch={args.batch}",
     )
 
     model = ImageGANSteganography(
@@ -289,10 +351,18 @@ def _train_image(
     best_path = ckpt_dir / "best_model.pth"
 
     best_val = -1.0
-    for epoch in range(1, args.epochs + 1):
+    for epoch in _epoch_range(args.epochs, args.no_tqdm):
         model.train()
         train_accs: list[float] = []
-        for cover, message in train_l:
+        pbar = _batch_pbar(
+            train_l,
+            no_tqdm=args.no_tqdm,
+            epoch=epoch,
+            epochs=args.epochs,
+            name="image",
+            nested=not args.no_tqdm,
+        )
+        for cover, message in pbar:
             cover = cover.to(device, non_blocking=True)
             message = message.to(device, non_blocking=True)
             opt_g.zero_grad()
@@ -317,18 +387,26 @@ def _train_image(
                 torch.nn.utils.clip_grad_norm_(model.generator.parameters(), 1.0)
                 opt_g.step()
                 opt_dec.step()
-            train_accs.append(_bit_accuracy_pct(decoded, message))
+            bit_now = _bit_accuracy_pct(decoded, message)
+            train_accs.append(bit_now)
+            if not args.no_tqdm and isinstance(pbar, tqdm):
+                pbar.set_postfix(
+                    loss=f"{loss.item():.4f}",
+                    msg=f"{msg_loss.item():.4f}",
+                    bit=f"{bit_now:.1f}",
+                )
 
         val_bit = _eval_image(model, val_l, device)
         train_bit = float(sum(train_accs) / max(len(train_accs), 1))
         if epoch == 1 or epoch % max(1, args.log_every) == 0 or epoch == args.epochs:
-            print(
-                f"Epoch {epoch:4d}/{args.epochs}  train_bit%={train_bit:.2f}  val_bit%={val_bit:.2f}"
+            _out(
+                log,
+                f"Epoch {epoch:4d}/{args.epochs}  train_bit%={train_bit:.2f}  val_bit%={val_bit:.2f}",
             )
         if val_bit > best_val:
             best_val = val_bit
             torch.save(model.state_dict(), best_path)
-            print(f"  -> saved (best val bit acc {best_val:.2f}%)  {best_path}")
+            _out(log, f"  -> saved (best val bit acc {best_val:.2f}%)  {best_path}")
     return best_path
 
 
@@ -337,7 +415,9 @@ def _train_video(
 ) -> Path:
     torch.manual_seed(args.seed)
     random.seed(args.seed)
+    log = _log_path_arg(args)
     total = _pool_size_for_args(args)
+    _out(log, f"Building {total} synthetic video sequences (can take a few minutes)…")
     ds = _make_synthetic_video_tensors(
         total,
         VIDEO_GAN.temporal_window,
@@ -345,9 +425,10 @@ def _train_video(
         VIDEO_GAN.message_bits,
     )
     train_l, val_l, n_t, n_v = _make_train_val_loaders(ds, args, device)
-    print(
+    _out(
+        log,
         f"[video] T={VIDEO_GAN.temporal_window} frame={VIDEO_GAN.frame_size} "
-        f"base_ch={VIDEO_GAN.base_channels} train={n_t} val={n_v}"
+        f"base_ch={VIDEO_GAN.base_channels} train={n_t} val={n_v}",
     )
     model = VideoGANSteganography(
         msg_length=VIDEO_GAN.message_bits,
@@ -370,10 +451,18 @@ def _train_video(
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     best_path = ckpt_dir / "best_model.pth"
     best_val = -1.0
-    for epoch in range(1, args.epochs + 1):
+    for epoch in _epoch_range(args.epochs, args.no_tqdm):
         model.train()
         train_accs: list[float] = []
-        for video, message in train_l:
+        pbar = _batch_pbar(
+            train_l,
+            no_tqdm=args.no_tqdm,
+            epoch=epoch,
+            epochs=args.epochs,
+            name="video",
+            nested=not args.no_tqdm,
+        )
+        for video, message in pbar:
             video = video.to(device, non_blocking=True)
             message = message.to(device, non_blocking=True)
             opt_g.zero_grad()
@@ -398,17 +487,25 @@ def _train_video(
                 torch.nn.utils.clip_grad_norm_(model.generator.parameters(), 1.0)
                 opt_g.step()
                 opt_dec.step()
-            train_accs.append(_bit_accuracy_pct(decoded, message))
+            bit_now = _bit_accuracy_pct(decoded, message)
+            train_accs.append(bit_now)
+            if not args.no_tqdm and isinstance(pbar, tqdm):
+                pbar.set_postfix(
+                    loss=f"{loss.item():.4f}",
+                    msg=f"{msg_loss.item():.4f}",
+                    bit=f"{bit_now:.1f}",
+                )
         val_bit = _eval_video(model, val_l, device)
         train_bit = float(sum(train_accs) / max(len(train_accs), 1))
         if epoch == 1 or epoch % max(1, args.log_every) == 0 or epoch == args.epochs:
-            print(
-                f"Epoch {epoch:4d}/{args.epochs}  train_bit%={train_bit:.2f}  val_bit%={val_bit:.2f}"
+            _out(
+                log,
+                f"Epoch {epoch:4d}/{args.epochs}  train_bit%={train_bit:.2f}  val_bit%={val_bit:.2f}",
             )
         if val_bit > best_val:
             best_val = val_bit
             torch.save(model.state_dict(), best_path)
-            print(f"  -> saved (best val bit acc {best_val:.2f}%)  {best_path}")
+            _out(log, f"  -> saved (best val bit acc {best_val:.2f}%)  {best_path}")
     return best_path
 
 
@@ -417,11 +514,14 @@ def _train_audio(
 ) -> Path:
     torch.manual_seed(args.seed)
     random.seed(args.seed)
+    log = _log_path_arg(args)
     total = _pool_size_for_args(args)
+    _out(log, f"Building {total} synthetic audio samples (can take a few minutes)…")
     ds = _make_synthetic_audio_tensors(
         total, AUDIO_GAN.freq_bins, AUDIO_GAN.message_bits
     )
     train_l, val_l, _, _ = _make_train_val_loaders(ds, args, device)
+    _out(log, f"[audio] freq_bins={AUDIO_GAN.freq_bins} base_ch={AUDIO_GAN.base_channels}")
     model = AudioGANSteganography(
         msg_length=AUDIO_GAN.message_bits,
         freq_bins=AUDIO_GAN.freq_bins,
@@ -442,10 +542,18 @@ def _train_audio(
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     best_path = ckpt_dir / "best_model.pth"
     best_val = -1.0
-    for epoch in range(1, args.epochs + 1):
+    for epoch in _epoch_range(args.epochs, args.no_tqdm):
         model.train()
         train_accs: list[float] = []
-        for mag, ph, message in train_l:
+        pbar = _batch_pbar(
+            train_l,
+            no_tqdm=args.no_tqdm,
+            epoch=epoch,
+            epochs=args.epochs,
+            name="audio",
+            nested=not args.no_tqdm,
+        )
+        for mag, ph, message in pbar:
             mag = mag.to(device, non_blocking=True)
             ph = ph.to(device, non_blocking=True)
             message = message.to(device, non_blocking=True)
@@ -471,17 +579,25 @@ def _train_audio(
                 torch.nn.utils.clip_grad_norm_(model.generator.parameters(), 1.0)
                 opt_g.step()
                 opt_dec.step()
-            train_accs.append(_bit_accuracy_pct(decoded, message))
+            bit_now = _bit_accuracy_pct(decoded, message)
+            train_accs.append(bit_now)
+            if not args.no_tqdm and isinstance(pbar, tqdm):
+                pbar.set_postfix(
+                    loss=f"{loss.item():.4f}",
+                    msg=f"{msg_loss.item():.4f}",
+                    bit=f"{bit_now:.1f}",
+                )
         val_bit = _eval_audio(model, val_l, device)
         train_bit = float(sum(train_accs) / max(len(train_accs), 1))
         if epoch == 1 or epoch % max(1, args.log_every) == 0 or epoch == args.epochs:
-            print(
-                f"Epoch {epoch:4d}/{args.epochs}  train_bit%={train_bit:.2f}  val_bit%={val_bit:.2f}"
+            _out(
+                log,
+                f"Epoch {epoch:4d}/{args.epochs}  train_bit%={train_bit:.2f}  val_bit%={val_bit:.2f}",
             )
         if val_bit > best_val:
             best_val = val_bit
             torch.save(model.state_dict(), best_path)
-            print(f"  -> saved (best val bit acc {best_val:.2f}%)  {best_path}")
+            _out(log, f"  -> saved (best val bit acc {best_val:.2f}%)  {best_path}")
     return best_path
 
 
@@ -550,6 +666,17 @@ def _parse() -> argparse.Namespace:
     p.add_argument(
         "--cpu", action="store_true", help="Shorthand for --device cpu (slow; for quick tests only)"
     )
+    p.add_argument(
+        "--log-file",
+        type=str,
+        default="",
+        help="Also append the same log lines to this file (for `!tail` in a second Colab cell).",
+    )
+    p.add_argument(
+        "--no-tqdm",
+        action="store_true",
+        help="Disable per-batch progress bars (plain log lines only; useful in CI).",
+    )
     return p.parse_args()
 
 
@@ -566,15 +693,17 @@ def main() -> None:
     else:
         dev_choice = args.device
     device = _resolve_device(dev_choice)
-    print(f"Device: {device}")
+    lp = _log_path_arg(args)
+    _out(lp, f"Device: {device}")
     if device.type == "cuda" and args.amp:
-        print("  (CUDA + automatic mixed precision)")
+        _out(lp, "  (CUDA + automatic mixed precision)")
     elif device.type == "mps":
-        print("  (Apple Metal — full float32; use smaller --batch if you hit OOM)")
+        _out(lp, "  (Apple Metal — full float32; use smaller --batch if you hit OOM)")
     if dev_choice == "auto" and device.type == "cpu":
-        print(
+        _out(
+            lp,
             "WARNING: No CUDA or MPS; training on CPU is very slow. "
-            "For NVIDIA: install CUDA PyTorch on a GPU machine; for Mac: use Apple Silicon with --device mps (default picks MPS if available)."
+            "For NVIDIA: install CUDA PyTorch on a GPU machine; for Mac: use Apple Silicon with --device mps (default picks MPS if available).",
         )
     if args.modality == "image":
         path = _train_image(args, device)
@@ -582,7 +711,7 @@ def main() -> None:
         path = _train_video(args, device)
     else:
         path = _train_audio(args, device)
-    print(f"Done. Checkpoint: {path}")
+    _out(lp, f"Done. Checkpoint: {path}")
 
 
 if __name__ == "__main__":

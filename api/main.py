@@ -453,6 +453,23 @@ async def health():
     }
 
 
+@app.get("/api/debug/gan")
+async def debug_gan():
+    import traceback, os
+    result = {}
+    improved = os.path.join(PATHS.models_dir, "image_gan_improved", "best_model.pth")
+    quickstart = os.path.join(PATHS.models_dir, "image_gan_quickstart", "best_model.pth")
+    result["improved_exists"] = os.path.exists(improved)
+    result["quickstart_exists"] = os.path.exists(quickstart)
+    result["models_dir"] = PATHS.models_dir
+    try:
+        get_image_method("gan")
+        result["load"] = "ok"
+    except Exception as e:
+        result["load_error"] = traceback.format_exc()
+    return result
+
+
 # Serve React frontend for all non-API routes (SPA catch-all)
 @app.get("/{full_path:path}")
 async def serve_frontend(full_path: str):

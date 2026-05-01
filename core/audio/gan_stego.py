@@ -10,20 +10,25 @@ from typing import Tuple
 
 from models.audio_gan import AudioGANSteganography
 from config.settings import AUDIO_GAN
+from core.error_correction import BitRepetitionECC, bits_to_bytes
 
 
 class AudioGANStego:
     """High-level API for audio GAN steganography."""
 
-    def __init__(self, model_path: str = None, device: str = "cuda"):
+    def __init__(self, model_path: str = None, device: str = "cuda", ecc_factor: int = 3):
         """
-        Initialize Audio GAN Stego.
+        Initialize Audio GAN Stego with bit-repetition ECC.
 
         Args:
             model_path: Path to pretrained model
             device: cuda or cpu
+            ecc_factor: Bit-repetition factor (1=no ECC, 3=balanced, 5=strong).
         """
         self.device = device
+        self.ecc = BitRepetitionECC(factor=ecc_factor) if ecc_factor > 1 else None
+        self.effective_bits = AUDIO_GAN.message_bits // ecc_factor
+
         self.model = AudioGANSteganography(
             msg_length=AUDIO_GAN.message_bits,
             freq_bins=AUDIO_GAN.freq_bins,
@@ -40,29 +45,34 @@ class AudioGANStego:
         self.hop_length = AUDIO_GAN.hop_length
 
     def capacity(self, audio: np.ndarray) -> int:
-        """Estimate capacity in bytes."""
-        return AUDIO_GAN.message_bits // 8
+        """Effective capacity in bytes after ECC."""
+        return self.effective_bits // 8
 
     def _text_to_bits(self, data: bytes) -> torch.Tensor:
-        """Convert bytes to binary tensor."""
+        """Convert bytes → bits → repetition encode → tensor."""
         bits = np.unpackbits(np.frombuffer(data, dtype=np.uint8))
-        bits = bits[: AUDIO_GAN.message_bits]
+        bits = bits[: self.effective_bits]
+        if len(bits) < self.effective_bits:
+            bits = np.pad(bits, (0, self.effective_bits - len(bits)))
+
+        if self.ecc is not None:
+            bits = self.ecc.encode(bits)
 
         if len(bits) < AUDIO_GAN.message_bits:
             bits = np.pad(bits, (0, AUDIO_GAN.message_bits - len(bits)))
+        bits = bits[: AUDIO_GAN.message_bits]
 
         return torch.from_numpy(bits.astype(np.float32))
 
     def _bits_to_text(self, bits: torch.Tensor) -> bytes:
-        """Convert binary tensor to bytes."""
+        """Decode model logits → sigmoid → majority vote → bytes."""
         with torch.no_grad():
-            bits_np = (bits > 0.5).cpu().numpy().astype(np.uint8)
+            bits_np = (torch.sigmoid(bits) > 0.5).cpu().numpy().astype(np.uint8)
 
-        num_bytes = len(bits_np) // 8
-        bits_reshaped = bits_np[: num_bytes * 8].reshape(-1, 8)
-        byte_array = np.packbits(bits_reshaped.reshape(-1, 8), axis=1, bitorder="big").flatten()
+        if self.ecc is not None:
+            bits_np = self.ecc.decode(bits_np)
 
-        return byte_array.tobytes()
+        return bits_to_bytes(bits_np)
 
     def encode(self, audio: np.ndarray, sr: int, secret_data: bytes) -> Tuple[np.ndarray, int]:
         """
@@ -139,12 +149,8 @@ class AudioGANStego:
         mag_norm = magnitude / (magnitude.max() + 1e-8)
         mag_tensor = torch.from_numpy(mag_norm[np.newaxis, np.newaxis, :, :]).float().to(self.device)
 
-        # Decode (phase not needed for message extraction)
+        # Run ONLY the decoder — do not re-encode
         with torch.no_grad():
-            _, decoded_bits = self.model(
-                mag_tensor,
-                torch.zeros_like(mag_tensor),
-                torch.zeros(1, AUDIO_GAN.message_bits).to(self.device),
-            )
+            decoded_bits = self.model.decoder(mag_tensor)
 
         return self._bits_to_text(decoded_bits[0])

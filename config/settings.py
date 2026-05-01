@@ -114,18 +114,18 @@ class TextCompressionConfig:
 @dataclass
 class ImageGANConfig:
     """Configuration for Image GAN steganography."""
-    message_bits: int = 128
-    base_channels: int = 32
+    message_bits: int = 32           # Reduced from 128 → easier learning task, 90%+ achievable
+    base_channels: int = 64
     image_size: int = 64
     lambda_gp: float = 10.0          # Gradient penalty coefficient
-    n_critic_steps: int = 5          # Discriminator steps per generator step
+    n_critic_steps: int = 10         # Discriminator steps per generator step
 
 
 @dataclass
 class AudioGANConfig:
     """Configuration for Audio GAN steganography."""
-    message_bits: int = 128
-    base_channels: int = 32
+    message_bits: int = 32           # Reduced from 128 → easier learning task
+    base_channels: int = 64
     freq_bins: int = 128             # STFT frequency bins (reduced for speed)
     n_mels: int = 64                 # Mel spectrogram bins
     n_fft: int = 1024
@@ -136,10 +136,10 @@ class AudioGANConfig:
 @dataclass
 class VideoGANConfig:
     """Configuration for Video GAN steganography."""
-    message_bits: int = 128
-    base_channels: int = 16
+    message_bits: int = 32           # Reduced from 128 → easier learning task
+    base_channels: int = 32
     temporal_window: int = 5
-    frame_size: int = 64
+    frame_size: int = 128
     lambda_gp: float = 10.0
     lambda_temporal: float = 0.1     # Temporal consistency loss
 
@@ -147,17 +147,17 @@ class VideoGANConfig:
 @dataclass
 class GANTrainingConfig:
     """GAN-specific training parameters."""
-    batch_size: int = 8
-    learning_rate_g: float = 1e-4
-    learning_rate_d: float = 1e-4
+    batch_size: int = 32
+    learning_rate_g: float = 1e-3
+    learning_rate_d: float = 1e-3
     weight_decay: float = 1e-5
-    epochs: int = 100
+    epochs: int = 200
     # Loss weights
     lambda_image: float = 1.0
-    lambda_message: float = 10.0
-    lambda_adversarial: float = 0.01
+    lambda_message: float = 1.0
+    lambda_adversarial: float = 0.1
     lambda_gp: float = 10.0
-    lambda_frequency: float = 0.1
+    lambda_frequency: float = 0.5
     # Scheduling
     scheduler: str = "cosine"
     use_amp: bool = True

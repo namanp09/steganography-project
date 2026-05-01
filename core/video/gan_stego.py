@@ -11,20 +11,25 @@ from pathlib import Path
 from models.video_gan import VideoGANSteganography
 from core.video.frame_utils import extract_frames, reconstruct_video, compute_optical_flow
 from config.settings import VIDEO_GAN
+from core.error_correction import BitRepetitionECC, bits_to_bytes
 
 
 class VideoGANStego:
     """High-level API for video GAN steganography."""
 
-    def __init__(self, model_path: str = None, device: str = "cuda"):
+    def __init__(self, model_path: str = None, device: str = "cuda", ecc_factor: int = 3):
         """
-        Initialize Video GAN Stego.
+        Initialize Video GAN Stego with bit-repetition ECC.
 
         Args:
             model_path: Path to pretrained model
             device: cuda or cpu
+            ecc_factor: Bit-repetition factor (1=no ECC, 3=balanced, 5=strong).
         """
         self.device = device
+        self.ecc = BitRepetitionECC(factor=ecc_factor) if ecc_factor > 1 else None
+        self.effective_bits = VIDEO_GAN.message_bits // ecc_factor
+
         self.model = VideoGANSteganography(
             msg_length=VIDEO_GAN.message_bits,
             base_ch=VIDEO_GAN.base_channels,
@@ -38,42 +43,38 @@ class VideoGANStego:
             self.model.load_state_dict(state_dict)
 
     def capacity(self, video_path: str) -> int:
-        """
-        Estimate capacity in bytes.
-
-        Args:
-            video_path: Path to video file
-
-        Returns:
-            Capacity in bytes
-        """
-        # Load first frame to estimate
+        """Effective capacity in bytes after ECC, across all temporal windows."""
         frames, _ = extract_frames(video_path, max_frames=1, resize=(VIDEO_GAN.frame_size, VIDEO_GAN.frame_size))
         if len(frames) > 0:
-            n_frames = min(100, 300)  # Assume up to 300 frames
-            return (VIDEO_GAN.message_bits // 8) * (n_frames // VIDEO_GAN.temporal_window)
+            n_frames = min(100, 300)
+            return (self.effective_bits // 8) * (n_frames // VIDEO_GAN.temporal_window)
         return 0
 
     def _text_to_bits(self, data: bytes) -> torch.Tensor:
-        """Convert bytes to binary tensor."""
+        """Convert bytes → bits → repetition encode → tensor."""
         bits = np.unpackbits(np.frombuffer(data, dtype=np.uint8))
-        bits = bits[: VIDEO_GAN.message_bits]
+        bits = bits[: self.effective_bits]
+        if len(bits) < self.effective_bits:
+            bits = np.pad(bits, (0, self.effective_bits - len(bits)))
+
+        if self.ecc is not None:
+            bits = self.ecc.encode(bits)
 
         if len(bits) < VIDEO_GAN.message_bits:
             bits = np.pad(bits, (0, VIDEO_GAN.message_bits - len(bits)))
+        bits = bits[: VIDEO_GAN.message_bits]
 
         return torch.from_numpy(bits.astype(np.float32))
 
     def _bits_to_text(self, bits: torch.Tensor) -> bytes:
-        """Convert binary tensor to bytes."""
+        """Decode model logits → sigmoid → majority vote → bytes."""
         with torch.no_grad():
-            bits_np = (bits > 0.5).cpu().numpy().astype(np.uint8)
+            bits_np = (torch.sigmoid(bits) > 0.5).cpu().numpy().astype(np.uint8)
 
-        num_bytes = len(bits_np) // 8
-        bits_reshaped = bits_np[: num_bytes * 8].reshape(-1, 8)
-        byte_array = np.packbits(bits_reshaped.reshape(-1, 8), axis=1, bitorder="big").flatten()
+        if self.ecc is not None:
+            bits_np = self.ecc.decode(bits_np)
 
-        return byte_array.tobytes()
+        return bits_to_bytes(bits_np)
 
     def encode(
         self,
@@ -169,11 +170,9 @@ class VideoGANStego:
         if window.shape[1] < tw:
             pad = torch.zeros(1, tw - window.shape[1], 3, VIDEO_GAN.frame_size, VIDEO_GAN.frame_size, device=self.device)
             window = torch.cat([window, pad], dim=1)
+        # Run ONLY the decoder — do not re-encode
+        # decoder expects (B, 3, T, H, W); window is (B, T, 3, H, W)
         with torch.no_grad():
-            _, decoded_bits = self.model(
-                window,
-                torch.zeros(1, VIDEO_GAN.message_bits).to(self.device),
-                None,
-            )
+            decoded_bits = self.model.decoder(window.permute(0, 2, 1, 3, 4))
 
         return self._bits_to_text(decoded_bits[0])

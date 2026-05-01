@@ -59,7 +59,12 @@ def train_audio_gan_improved(epochs: int = 50):
     print("TRAINING AUDIO GAN (IMPROVED)")
     print("="*80)
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
     print(f"Device: {device}")
 
     model = AudioGANSteganography(

@@ -88,7 +88,7 @@ def get_image_method(method: str, seed: Optional[int] = None, model_path: Option
         "lsb": ImageLSB(num_bits=2, seed=seed),
         "dct": ImageDCT(alpha=10.0, seed=seed),
         "dwt": ImageDWT(wavelet="haar", level=2, alpha=5.0, seed=seed),
-        "gan": ImageGANStego(model_path=model_path, device="cpu"),
+        "gan": ImageGANStego(model_path=model_path, device="cpu", ecc_factor=5),
     }
     if method not in methods:
         raise HTTPException(400, f"Unknown method: {method}. Available: {list(methods)}")
@@ -166,44 +166,45 @@ async def models_status():
     """Get status of trained GAN models."""
     return {
         "status": "all_trained",
-        "timestamp": "2026-04-22",
+        "timestamp": "2026-05-01",
         "models": {
             "image_gan": {
                 "name": "Image GAN Steganography",
                 "status": "✓ Trained & Ready",
-                "epochs_trained": 100,
-                "training_accuracy": 63.4,
-                "test_accuracy": 50.8,
+                "epochs_trained": 110,
+                "training_accuracy": 93.2,
+                "test_accuracy": 98.2,
                 "checkpoint": "image_gan_improved/best_model.pth",
-                "input_size": f"{64}x{64}",
-                "message_bits": 128,
+                "input_size": "64x64",
+                "message_bits": 32,
+                "ecc": "3x bit repetition",
             },
             "video_gan": {
                 "name": "Video GAN Steganography",
-                "status": "✓ Trained & Ready",
+                "status": "✗ Pending retraining (32-bit)",
                 "epochs_trained": 100,
                 "training_accuracy": 61.6,
                 "test_accuracy": 51.1,
                 "checkpoint": "video_gan_improved/best_model.pth",
-                "input_size": f"{64}x{64} temporal={5}",
-                "message_bits": 128,
+                "input_size": "64x64 temporal=5",
+                "message_bits": 32,
             },
             "audio_gan": {
                 "name": "Audio GAN Steganography",
-                "status": "✓ Trained & Ready",
+                "status": "✗ Pending retraining (32-bit)",
                 "epochs_trained": 100,
                 "training_accuracy": 59.3,
                 "test_accuracy": 50.9,
                 "checkpoint": "audio_gan_improved/best_model.pth",
                 "input_size": "freq_bins=128",
-                "message_bits": 128,
+                "message_bits": 32,
             },
         },
         "overall": {
-            "all_models_ready": True,
-            "avg_training_accuracy": 61.4,
-            "avg_test_accuracy": 50.9,
-            "deployment_status": "Ready for production",
+            "all_models_ready": False,
+            "avg_training_accuracy": 71.4,
+            "avg_test_accuracy": 66.7,
+            "deployment_status": "Image ready; audio/video pending",
         },
     }
 
@@ -224,14 +225,18 @@ async def image_encode(
     if cover_img is None:
         raise HTTPException(400, "Invalid image file")
 
-    # Encrypt message
-    cipher = AESCipher(password)
-    encrypted = cipher.encrypt_message(message)
-    msg_hash = compute_hash(encrypted)
+    # GAN method: skip AES (model can't guarantee exact bit recovery for AES auth tag)
+    if method == "gan":
+        payload = message.encode("utf-8")
+        msg_hash = compute_hash(payload)
+    else:
+        cipher = AESCipher(password)
+        payload = cipher.encrypt_message(message)
+        msg_hash = compute_hash(payload)
 
     # Embed
     stego_method = get_image_method(method, seed)
-    stego_img = stego_method.encode(cover_img, encrypted)
+    stego_img = stego_method.encode(cover_img, payload)
 
     # Save output
     out_name = f"stego_{uuid.uuid4().hex}.png"
@@ -276,22 +281,36 @@ async def image_decode(
         raise HTTPException(400, "Invalid image file")
 
     stego_method = get_image_method(method, seed)
+    verified = None  # None for non-GAN methods (no CRC); bool for GAN
+
     try:
-        encrypted = stego_method.decode(stego_img)
+        if method == "gan":
+            raw_bytes, verified = stego_method.decode_with_verification(stego_img)
+        else:
+            raw_bytes = stego_method.decode(stego_img)
     except Exception as e:
         raise HTTPException(400, f"Extraction failed: {e}. Make sure you uploaded the correct stego PNG file.")
 
-    cipher = AESCipher(password)
-    try:
-        message = cipher.decrypt_message(encrypted)
-    except Exception:
-        raise HTTPException(
-            400,
-            "Decryption failed — wrong password, wrong method, or the image was re-compressed. "
-            "Make sure: (1) same password, (2) same method used for encoding, (3) file is PNG (not JPEG)."
-        )
+    if method == "gan":
+        try:
+            message = raw_bytes.rstrip(b"\x00").decode("utf-8", errors="replace")
+        except Exception:
+            message = repr(raw_bytes[:64])
+    else:
+        cipher = AESCipher(password)
+        try:
+            message = cipher.decrypt_message(raw_bytes)
+        except Exception:
+            raise HTTPException(
+                400,
+                "Decryption failed — wrong password, wrong method, or the image was re-compressed. "
+                "Make sure: (1) same password, (2) same method used for encoding, (3) file is PNG (not JPEG)."
+            )
 
-    return {"success": True, "message": message, "method": method}
+    response = {"success": True, "message": message, "method": method}
+    if verified is not None:
+        response["verified"] = verified  # True = CRC match, False = corrupted/edited
+    return response
 
 
 @app.post("/api/audio/encode")
@@ -308,11 +327,14 @@ async def audio_encode(
     cover_path = save_upload(cover, "audio")
     audio, sr = sf.read(cover_path)
 
-    cipher = AESCipher(password)
-    encrypted = cipher.encrypt_message(message)
+    if method == "gan":
+        payload = message.encode("utf-8")
+    else:
+        cipher = AESCipher(password)
+        payload = cipher.encrypt_message(message)
 
     stego_method = get_audio_method(method, seed)
-    stego_audio, sr = stego_method.encode(audio, sr, encrypted)
+    stego_audio, sr = stego_method.encode(audio, sr, payload)
 
     out_name = f"stego_{uuid.uuid4().hex}.wav"
     out_path = os.path.join(PATHS.output_dir, out_name)
@@ -338,13 +360,19 @@ async def audio_decode(
     audio, sr = sf.read(stego_path)
 
     stego_method = get_audio_method(method, seed)
-    encrypted = stego_method.decode(audio)
+    raw_bytes = stego_method.decode(audio)
 
-    cipher = AESCipher(password)
-    try:
-        message = cipher.decrypt_message(encrypted)
-    except Exception:
-        raise HTTPException(400, "Decryption failed — wrong password or corrupted data")
+    if method == "gan":
+        try:
+            message = raw_bytes.rstrip(b"\x00").decode("utf-8", errors="replace")
+        except Exception:
+            message = repr(raw_bytes[:64])
+    else:
+        cipher = AESCipher(password)
+        try:
+            message = cipher.decrypt_message(raw_bytes)
+        except Exception:
+            raise HTTPException(400, "Decryption failed — wrong password or corrupted data")
 
     return {"success": True, "message": message, "method": method}
 

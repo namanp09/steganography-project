@@ -129,11 +129,8 @@ def evaluate(model, loader, device):
 # ─── Training ─────────────────────────────────────────────────────────────────
 
 def train(epochs: int = 120, warmup_epochs: int = 40, resume: bool = False):
-    device = (
-        "cuda" if torch.cuda.is_available()
-        else "mps" if torch.backends.mps.is_available()
-        else "cpu"
-    )
+    # Force CPU — MPS hangs on Conv3d backward pass for this architecture
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Device: {device}")
 
     # Build dataset from real videos

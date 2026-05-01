@@ -2,13 +2,19 @@
 GAN-based Video Steganography API wrapper.
 Spatio-temporal embedding with motion-aware masking.
 """
+from __future__ import annotations
 
-import torch
+try:
+    import torch
+    from models.video_gan import VideoGANSteganography
+    _TORCH_AVAILABLE = True
+except ImportError:
+    _TORCH_AVAILABLE = False
+
 import numpy as np
 from typing import Dict
 from pathlib import Path
 
-from models.video_gan import VideoGANSteganography
 from core.video.frame_utils import extract_frames, reconstruct_video, compute_optical_flow
 from config.settings import VIDEO_GAN
 from core.error_correction import BitRepetitionECC, bits_to_bytes
@@ -18,14 +24,8 @@ class VideoGANStego:
     """High-level API for video GAN steganography."""
 
     def __init__(self, model_path: str = None, device: str = "cuda", ecc_factor: int = 3):
-        """
-        Initialize Video GAN Stego with bit-repetition ECC.
-
-        Args:
-            model_path: Path to pretrained model
-            device: cuda or cpu
-            ecc_factor: Bit-repetition factor (1=no ECC, 3=balanced, 5=strong).
-        """
+        if not _TORCH_AVAILABLE:
+            raise RuntimeError("PyTorch is not installed. GAN method is unavailable in this deployment.")
         self.device = device
         self.ecc = BitRepetitionECC(factor=ecc_factor) if ecc_factor > 1 else None
         self.effective_bits = VIDEO_GAN.message_bits // ecc_factor

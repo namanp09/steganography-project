@@ -137,9 +137,9 @@ class AudioGANConfig:
 class VideoGANConfig:
     """Configuration for Video GAN steganography."""
     message_bits: int = 32           # Reduced from 128 → easier learning task
-    base_channels: int = 32
+    base_channels: int = 16
     temporal_window: int = 5
-    frame_size: int = 128
+    frame_size: int = 64
     lambda_gp: float = 10.0
     lambda_temporal: float = 0.1     # Temporal consistency loss
 

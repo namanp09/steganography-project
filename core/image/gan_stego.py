@@ -2,16 +2,22 @@
 GAN-based Image Steganography API wrapper.
 Provides encode/decode interface compatible with the existing API.
 """
+from __future__ import annotations
 
-import torch
-import torch.nn as nn
+try:
+    import torch
+    import torch.nn as nn
+    from torchvision import transforms
+    from models.image_gan import ImageGANSteganography
+    _TORCH_AVAILABLE = True
+except ImportError:
+    _TORCH_AVAILABLE = False
+
 import numpy as np
 import binascii
 from typing import Optional, Tuple
-from torchvision import transforms
 from PIL import Image
 
-from models.image_gan import ImageGANSteganography
 from config.settings import IMAGE_GAN
 from core.error_correction import BitRepetitionECC, bytes_to_bits, bits_to_bytes
 
@@ -28,13 +34,8 @@ class ImageGANStego:
     _CRC_SIZE = 4              # CRC32, 4 bytes
 
     def __init__(self, model_path: Optional[str] = None, device: str = "cuda", ecc_factor: int = 3):
-        """
-        Initialize Image GAN Stego with bit-repetition ECC + spatial tiling.
-
-        Tiling: image is split into non-overlapping image_size×image_size tiles,
-        each tile carries `message_bits // ecc_factor` data bits. Total capacity
-        scales with image area: a 256×256 image at image_size=64 → 4×4=16 tiles.
-        """
+        if not _TORCH_AVAILABLE:
+            raise RuntimeError("PyTorch is not installed. GAN method is unavailable in this deployment.")
         self.device = device
         self.ecc = BitRepetitionECC(factor=ecc_factor) if ecc_factor > 1 else None
         self.bits_per_tile = IMAGE_GAN.message_bits // ecc_factor

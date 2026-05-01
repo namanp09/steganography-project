@@ -17,7 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python dependencies
+# Install PyTorch CPU-only first (separate index URL), then remaining deps
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 COPY requirements-deploy.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -25,6 +26,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY config/ config/
 COPY core/ core/
 COPY api/ api/
+COPY models/ models/
 
 # Copy built frontend from stage 1
 COPY --from=frontend-build /app/frontend/dist frontend/dist

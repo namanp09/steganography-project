@@ -78,56 +78,58 @@ def save_upload(file: UploadFile, subdir: str = "") -> str:
 
 
 def get_image_method(method: str, seed: Optional[int] = None, model_path: Optional[str] = None):
-    # Use improved model if available, otherwise fall back to quickstart
-    if model_path is None and method == "gan":
-        improved_path = os.path.join(PATHS.models_dir, "image_gan_improved", "best_model.pth")
-        quickstart_path = os.path.join(PATHS.models_dir, "image_gan_quickstart", "best_model.pth")
-        model_path = improved_path if os.path.exists(improved_path) else quickstart_path
-
-    methods = {
-        "lsb": ImageLSB(num_bits=2, seed=seed),
-        "dct": ImageDCT(alpha=10.0, seed=seed),
-        "dwt": ImageDWT(wavelet="haar", level=2, alpha=5.0, seed=seed),
-        "gan": ImageGANStego(model_path=model_path, device="cpu", ecc_factor=5),
-    }
-    if method not in methods:
-        raise HTTPException(400, f"Unknown method: {method}. Available: {list(methods)}")
-    return methods[method]
+    if method == "lsb":
+        return ImageLSB(num_bits=2, seed=seed)
+    if method == "dct":
+        return ImageDCT(alpha=10.0, seed=seed)
+    if method == "dwt":
+        return ImageDWT(wavelet="haar", level=2, alpha=5.0, seed=seed)
+    if method == "gan":
+        if model_path is None:
+            improved_path = os.path.join(PATHS.models_dir, "image_gan_improved", "best_model.pth")
+            quickstart_path = os.path.join(PATHS.models_dir, "image_gan_quickstart", "best_model.pth")
+            model_path = improved_path if os.path.exists(improved_path) else quickstart_path
+        try:
+            return ImageGANStego(model_path=model_path, device="cpu", ecc_factor=5)
+        except RuntimeError as e:
+            raise HTTPException(503, str(e))
+    raise HTTPException(400, f"Unknown method: {method}. Available: lsb, dct, dwt, gan")
 
 
 def get_audio_method(method: str, seed: Optional[int] = None, model_path: Optional[str] = None):
-    # Use improved model if available
-    if model_path is None and method == "gan":
-        improved_path = os.path.join(PATHS.models_dir, "audio_gan_improved", "best_model.pth")
-        quickstart_path = os.path.join(PATHS.models_dir, "audio_gan_quickstart", "best_model.pth")
-        model_path = improved_path if os.path.exists(improved_path) else quickstart_path
-
-    methods = {
-        "lsb": AudioLSB(num_bits=2, seed=seed),
-        "dwt": AudioDWT(wavelet="db4", level=4, alpha=0.02, seed=seed),
-        "gan": AudioGANStego(model_path=model_path, device="cpu"),
-    }
-    if method not in methods:
-        raise HTTPException(400, f"Unknown method: {method}. Available: {list(methods)}")
-    return methods[method]
+    if method == "lsb":
+        return AudioLSB(num_bits=2, seed=seed)
+    if method == "dwt":
+        return AudioDWT(wavelet="db4", level=4, alpha=0.02, seed=seed)
+    if method == "gan":
+        if model_path is None:
+            improved_path = os.path.join(PATHS.models_dir, "audio_gan_improved", "best_model.pth")
+            quickstart_path = os.path.join(PATHS.models_dir, "audio_gan_quickstart", "best_model.pth")
+            model_path = improved_path if os.path.exists(improved_path) else quickstart_path
+        try:
+            return AudioGANStego(model_path=model_path, device="cpu")
+        except RuntimeError as e:
+            raise HTTPException(503, str(e))
+    raise HTTPException(400, f"Unknown method: {method}. Available: lsb, dwt, gan")
 
 
 def get_video_method(method: str, seed: Optional[int] = None, model_path: Optional[str] = None):
-    # Use improved model if available
-    if model_path is None and method == "gan":
-        improved_path = os.path.join(PATHS.models_dir, "video_gan_improved", "best_model.pth")
-        quickstart_path = os.path.join(PATHS.models_dir, "video_gan_quickstart", "best_model.pth")
-        model_path = improved_path if os.path.exists(improved_path) else quickstart_path
-
-    methods = {
-        "lsb": VideoLSB(num_bits=2, embed_every_n=2, use_motion_comp=False, seed=seed),
-        "dct": VideoDCT(alpha=30.0, embed_every_n=2, use_motion_comp=False, seed=seed),
-        "dwt": VideoDWT(wavelet="haar", level=2, alpha=10.0, embed_every_n=2, use_motion_comp=False, seed=seed),
-        "gan": VideoGANStego(model_path=model_path, device="cpu"),
-    }
-    if method not in methods:
-        raise HTTPException(400, f"Unknown method: {method}. Available: {list(methods)}")
-    return methods[method]
+    if method == "lsb":
+        return VideoLSB(num_bits=2, embed_every_n=2, use_motion_comp=False, seed=seed)
+    if method == "dct":
+        return VideoDCT(alpha=30.0, embed_every_n=2, use_motion_comp=False, seed=seed)
+    if method == "dwt":
+        return VideoDWT(wavelet="haar", level=2, alpha=10.0, embed_every_n=2, use_motion_comp=False, seed=seed)
+    if method == "gan":
+        if model_path is None:
+            improved_path = os.path.join(PATHS.models_dir, "video_gan_improved", "best_model.pth")
+            quickstart_path = os.path.join(PATHS.models_dir, "video_gan_quickstart", "best_model.pth")
+            model_path = improved_path if os.path.exists(improved_path) else quickstart_path
+        try:
+            return VideoGANStego(model_path=model_path, device="cpu")
+        except RuntimeError as e:
+            raise HTTPException(503, str(e))
+    raise HTTPException(400, f"Unknown method: {method}. Available: lsb, dct, dwt, gan")
 
 
 # ─────────────────────────── Endpoints ───────────────────────────

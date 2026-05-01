@@ -2,13 +2,19 @@
 GAN-based Audio Steganography API wrapper.
 Spectrogram domain embedding with psychoacoustic masking.
 """
+from __future__ import annotations
 
-import torch
+try:
+    import torch
+    from models.audio_gan import AudioGANSteganography
+    _TORCH_AVAILABLE = True
+except ImportError:
+    _TORCH_AVAILABLE = False
+
 import numpy as np
 import librosa
 from typing import Tuple
 
-from models.audio_gan import AudioGANSteganography
 from config.settings import AUDIO_GAN
 from core.error_correction import BitRepetitionECC, bits_to_bytes
 
@@ -17,14 +23,8 @@ class AudioGANStego:
     """High-level API for audio GAN steganography."""
 
     def __init__(self, model_path: str = None, device: str = "cuda", ecc_factor: int = 3):
-        """
-        Initialize Audio GAN Stego with bit-repetition ECC.
-
-        Args:
-            model_path: Path to pretrained model
-            device: cuda or cpu
-            ecc_factor: Bit-repetition factor (1=no ECC, 3=balanced, 5=strong).
-        """
+        if not _TORCH_AVAILABLE:
+            raise RuntimeError("PyTorch is not installed. GAN method is unavailable in this deployment.")
         self.device = device
         self.ecc = BitRepetitionECC(factor=ecc_factor) if ecc_factor > 1 else None
         self.effective_bits = AUDIO_GAN.message_bits // ecc_factor

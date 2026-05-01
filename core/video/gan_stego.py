@@ -41,8 +41,10 @@ class VideoGANStego:
         self.model.eval()
 
         if model_path:
-            state_dict = torch.load(model_path, map_location=device)
+            state_dict = torch.load(model_path, map_location=device, weights_only=True)
             self.model.load_state_dict(state_dict)
+            del state_dict
+            import gc; gc.collect()
 
     def capacity(self, video_path: str) -> int:
         """Effective capacity in bytes after ECC, across all temporal windows."""

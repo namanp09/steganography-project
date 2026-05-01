@@ -51,8 +51,10 @@ class ImageGANStego:
         self.model.eval()
 
         if model_path:
-            state_dict = torch.load(model_path, map_location=device)
+            state_dict = torch.load(model_path, map_location=device, weights_only=True)
             self.model.load_state_dict(state_dict)
+            del state_dict
+            import gc; gc.collect()
 
     def _grid_dims(self, h: int, w: int) -> tuple:
         """Number of non-overlapping tiles that fit in (h, w) at tile_size."""
@@ -168,16 +170,20 @@ class ImageGANStego:
         n_tiles = n_h * n_w
         tile_bits, n_used = self._payload_to_tile_bits(secret_data, n_tiles)
 
-        # Only run the model on the tiles we actually need to embed in
+        # Process tiles in mini-batches to keep peak memory low
+        import gc
         used_tiles = tile_grid[:n_used]
-        used_tensor = torch.from_numpy(used_tiles).float().permute(0, 3, 1, 2) / 255.0
-        used_tensor = used_tensor.to(self.device)
-        msg_tensor = torch.from_numpy(tile_bits[:n_used]).to(self.device)
-
+        stego_used_np = np.empty_like(used_tiles)
+        batch_size = 4
         with torch.no_grad():
-            stego_used, _ = self.model(used_tensor, msg_tensor)
-
-        stego_used_np = (stego_used.permute(0, 2, 3, 1).cpu().numpy() * 255).clip(0, 255).astype(np.uint8)
+            for i in range(0, n_used, batch_size):
+                batch = used_tiles[i:i + batch_size]
+                bt = torch.from_numpy(batch).float().permute(0, 3, 1, 2) / 255.0
+                mt = torch.from_numpy(tile_bits[i:i + batch_size])
+                out, _ = self.model(bt, mt)
+                stego_used_np[i:i + batch_size] = (out.permute(0, 2, 3, 1).numpy() * 255).clip(0, 255).astype(np.uint8)
+                del bt, mt, out
+        gc.collect()
 
         # Build full stego_np: replace only the used tiles, leave rest unchanged
         stego_np = tile_grid.copy()
@@ -218,12 +224,18 @@ class ImageGANStego:
                                  .swapaxes(1, 2)\
                                  .reshape(n_h * n_w, self.tile_size, self.tile_size, 3)
 
-        tiles_tensor = torch.from_numpy(tile_grid).float().permute(0, 3, 1, 2) / 255.0
-        tiles_tensor = tiles_tensor.to(self.device)
-
+        import gc
+        n_tiles = len(tile_grid)
+        batch_size = 4
+        logits_list = []
         with torch.no_grad():
-            logits = self.model.decoder(tiles_tensor)
-
+            for i in range(0, n_tiles, batch_size):
+                bt = torch.from_numpy(tile_grid[i:i + batch_size]).float().permute(0, 3, 1, 2) / 255.0
+                logits_list.append(self.model.decoder(bt))
+                del bt
+        logits = torch.cat(logits_list, dim=0)
+        del logits_list
+        gc.collect()
         return self._tile_logits_to_payload(logits)
 
 

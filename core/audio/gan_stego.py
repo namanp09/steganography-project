@@ -39,8 +39,10 @@ class AudioGANStego:
         self.model.eval()
 
         if model_path:
-            state_dict = torch.load(model_path, map_location=device)
+            state_dict = torch.load(model_path, map_location=device, weights_only=True)
             self.model.load_state_dict(state_dict)
+            del state_dict
+            import gc; gc.collect()
 
         # STFT parameters
         self.n_fft = AUDIO_GAN.n_fft

@@ -88,7 +88,11 @@ def get_image_method(method: str, seed: Optional[int] = None, model_path: Option
         if model_path is None:
             improved_path = os.path.join(PATHS.models_dir, "image_gan_improved", "best_model.pth")
             quickstart_path = os.path.join(PATHS.models_dir, "image_gan_quickstart", "best_model.pth")
-            model_path = improved_path if os.path.exists(improved_path) else quickstart_path
+            if os.path.exists(improved_path):
+                model_path = improved_path
+            elif os.path.exists(quickstart_path):
+                model_path = quickstart_path
+            # else model_path stays None → runs with random weights
         try:
             return ImageGANStego(model_path=model_path, device="cpu", ecc_factor=5)
         except RuntimeError as e:
@@ -105,7 +109,10 @@ def get_audio_method(method: str, seed: Optional[int] = None, model_path: Option
         if model_path is None:
             improved_path = os.path.join(PATHS.models_dir, "audio_gan_improved", "best_model.pth")
             quickstart_path = os.path.join(PATHS.models_dir, "audio_gan_quickstart", "best_model.pth")
-            model_path = improved_path if os.path.exists(improved_path) else quickstart_path
+            if os.path.exists(improved_path):
+                model_path = improved_path
+            elif os.path.exists(quickstart_path):
+                model_path = quickstart_path
         try:
             return AudioGANStego(model_path=model_path, device="cpu")
         except RuntimeError as e:
@@ -124,7 +131,10 @@ def get_video_method(method: str, seed: Optional[int] = None, model_path: Option
         if model_path is None:
             improved_path = os.path.join(PATHS.models_dir, "video_gan_improved", "best_model.pth")
             quickstart_path = os.path.join(PATHS.models_dir, "video_gan_quickstart", "best_model.pth")
-            model_path = improved_path if os.path.exists(improved_path) else quickstart_path
+            if os.path.exists(improved_path):
+                model_path = improved_path
+            elif os.path.exists(quickstart_path):
+                model_path = quickstart_path
         try:
             return VideoGANStego(model_path=model_path, device="cpu")
         except RuntimeError as e:

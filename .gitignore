@@ -3,7 +3,11 @@ __pycache__/
 .env
 uploads/
 outputs/
-models/checkpoints/**/*.pth
+# Quickstart/backup checkpoints excluded (too large); improved ones tracked via LFS
+models/checkpoints/image_gan_quickstart/
+models/checkpoints/audio_gan_quickstart/
+models/checkpoints/video_gan_quickstart/
+models/checkpoints/image_gan_improved/best_model_lowpsnr_backup.pth
 data/images/
 data/audio/
 data/video/

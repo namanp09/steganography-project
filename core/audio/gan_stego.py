@@ -8,8 +8,10 @@ try:
     import torch
     from models.audio_gan import AudioGANSteganography
     _TORCH_AVAILABLE = True
-except (ImportError, OSError):
+    _TORCH_ERROR = None
+except Exception as _e:
     _TORCH_AVAILABLE = False
+    _TORCH_ERROR = f"{type(_e).__name__}: {_e}"
 
 import numpy as np
 import librosa

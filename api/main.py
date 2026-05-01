@@ -445,7 +445,12 @@ async def video_decode(
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    from core.image.gan_stego import _TORCH_AVAILABLE, _TORCH_ERROR
+    return {
+        "status": "ok",
+        "torch_available": _TORCH_AVAILABLE,
+        "torch_error": _TORCH_ERROR,
+    }
 
 
 # Serve React frontend for all non-API routes (SPA catch-all)

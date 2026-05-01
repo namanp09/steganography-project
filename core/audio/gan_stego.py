@@ -8,7 +8,7 @@ try:
     import torch
     from models.audio_gan import AudioGANSteganography
     _TORCH_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError):
     _TORCH_AVAILABLE = False
 
 import numpy as np

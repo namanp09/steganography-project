@@ -10,7 +10,7 @@ try:
     from torchvision import transforms
     from models.image_gan import ImageGANSteganography
     _TORCH_AVAILABLE = True
-except ImportError:
+except (ImportError, OSError):
     _TORCH_AVAILABLE = False
 
 import numpy as np

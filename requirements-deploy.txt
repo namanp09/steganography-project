@@ -18,6 +18,9 @@ PyWavelets>=1.5.0
 pycryptodome>=3.20.0
 reedsolo>=1.7.0
 
+# DL utilities (required by GAN model files)
+einops>=0.7.0
+
 # Metrics
 scikit-image>=0.22.0
 

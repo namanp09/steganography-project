@@ -8,6 +8,10 @@ models/checkpoints/image_gan_quickstart/
 models/checkpoints/audio_gan_quickstart/
 models/checkpoints/video_gan_quickstart/
 models/checkpoints/image_gan_improved/best_model_lowpsnr_backup.pth
+# Training-run intermediate checkpoints (backup_*, adapt_*, debias_*, etc.)
+models/checkpoints/video_gan_improved/backup_*.pth
+models/checkpoints/video_gan_improved/adapt_*.pth
+models/checkpoints/video_gan_improved/debias_*.pth
 data/images/
 data/audio/
 data/video/

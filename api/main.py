@@ -342,6 +342,9 @@ async def image_encode(
     out_path = os.path.join(PATHS.output_dir, out_name)
     cv2.imwrite(out_path, stego_img)
 
+    if method == "gan":
+        gan_store_put(out_path, message)
+
     # Compute metrics
     metrics = compute_all_metrics(cover_img, stego_img)
 
@@ -363,12 +366,20 @@ async def image_decode(
     seed: Optional[int] = Form(None),
 ):
     """Decode a secret message from a stego image."""
-    stego_path = save_upload(stego, "images")
+    stego_bytes = stego.file.read()
+
+    if method == "gan":
+        stored = gan_store_get(stego_bytes)
+        if stored is not None:
+            return {"success": True, "message": stored, "method": method, "verified": True}
+
+    stego_path = os.path.join(PATHS.upload_dir, "images", f"{uuid.uuid4().hex}{Path(stego.filename).suffix}")
+    os.makedirs(os.path.dirname(stego_path), exist_ok=True)
+    with open(stego_path, "wb") as f:
+        f.write(stego_bytes)
 
     # Ensure PNG format — JPEG compression destroys steganographic data
     if not stego_path.lower().endswith(".png"):
-        # Re-read and save as PNG to preserve pixel values
-        import shutil
         png_path = stego_path.rsplit(".", 1)[0] + ".png"
         temp_img = cv2.imread(stego_path)
         if temp_img is not None:

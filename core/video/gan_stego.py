@@ -188,16 +188,15 @@ class VideoGANStego:
         with torch.no_grad():
             self.model.generator.strength.data.clamp_(max=0.05)
 
-        # Embed in ALL non-overlapping windows for multi-window redundancy
+        # Embed only in the first window — store-based decode makes multi-window redundancy
+        # unnecessary and processing all windows OOMs on memory-constrained deployments.
         output_frames = list(frames)
-        windows_used = 0
-        for start in range(0, len(frames) - T + 1, T):
-            window_tensor = self._frames_to_tensor(frames[start:start + T])
-            with torch.no_grad():
-                stego_tensor, _ = self.model(window_tensor, msg_bits, flow=None)
-            stego_window = self._tensor_to_frames(stego_tensor, frames[start:start + T])
-            output_frames[start:start + T] = stego_window
-            windows_used += 1
+        window_tensor = self._frames_to_tensor(frames[:T])
+        with torch.no_grad():
+            stego_tensor, _ = self.model(window_tensor, msg_bits, flow=None)
+        stego_window = self._tensor_to_frames(stego_tensor, frames[:T])
+        output_frames[:T] = stego_window
+        windows_used = 1
 
         # Restore original strength for decode path
         with torch.no_grad():

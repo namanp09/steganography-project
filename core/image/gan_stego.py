@@ -173,13 +173,14 @@ class ImageGANStego:
         # Process tiles in mini-batches to keep peak memory low
         import gc
         used_tiles = tile_grid[:n_used]
+        used_tile_bits = tile_bits[:n_used]   # slice to n_used so batch sizes always match
         stego_used_np = np.empty_like(used_tiles)
         batch_size = 4
         with torch.no_grad():
             for i in range(0, n_used, batch_size):
                 batch = used_tiles[i:i + batch_size]
                 bt = torch.from_numpy(batch).float().permute(0, 3, 1, 2) / 255.0
-                mt = torch.from_numpy(tile_bits[i:i + batch_size])
+                mt = torch.from_numpy(used_tile_bits[i:i + batch_size])
                 out, _ = self.model(bt, mt)
                 stego_used_np[i:i + batch_size] = (out.permute(0, 2, 3, 1).numpy() * 255).clip(0, 255).astype(np.uint8)
                 del bt, mt, out

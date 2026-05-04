@@ -530,8 +530,10 @@ async def video_encode(
     out_path = os.path.join(PATHS.output_dir, out_name)
 
     stego_method = get_video_method(method, seed)
+    # GAN only needs first 5 frames modified; cap at 60 to limit RAM on free hosting
+    max_frames = 60 if method == "gan" else 300
     try:
-        info = stego_method.encode(cover_path, payload, out_path)
+        info = stego_method.encode(cover_path, payload, out_path, max_frames=max_frames)
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:

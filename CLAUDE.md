@@ -14,6 +14,24 @@ python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 # Runs on localhost:5173
 ```
 
+## Deployment
+
+Deployed on Render at `steganography-system-1i6k.onrender.com` via `render.yaml` (Docker runtime, free plan).
+
+```bash
+# Trigger a redeploy: just push to main
+git push
+```
+
+Key deployment facts:
+- Checkpoints (`image_gan_improved`, `audio_gan_improved`, `video_gan_improved`) are tracked via **Git LFS** — they get pulled into the Docker image at build time via `COPY models/ models/`
+- PyTorch CPU-only is installed in the Dockerfile from `https://download.pytorch.org/whl/cpu`
+- `requirements-deploy.txt` has all non-torch deps; torch/torchvision/torchaudio installed separately
+- `libgomp1` is installed in the Dockerfile (required by torch CPU on slim Debian)
+- GAN modules use `try/except` lazy imports so the server starts even if torch fails to load
+- `/health` returns `torch_available` and `torch_error` for diagnosing import failures
+- `/api/debug/gan` tries to load the image GAN model and reports any errors
+
 ## Architecture
 
 ```
@@ -22,18 +40,21 @@ config/settings.py       # All config (model sizes, paths, hyperparams)
 core/
   image/gan_stego.py     # Image GAN encode/decode wrapper
   audio/gan_stego.py     # Audio GAN encode/decode wrapper
-  video/gan_stego.py     # Video GAN encode/decode wrapper  ← most recently edited
+  video/gan_stego.py     # Video GAN encode/decode wrapper
   encryption.py          # AES-256-GCM cipher
 models/
   image_gan/             # ImageGANSteganography architecture
   audio_gan/             # AudioGANSteganography architecture
   video_gan/model.py     # VideoGANSteganography — expects T=temporal_window frames
   checkpoints/
-    image_gan_improved/best_model.pth
-    audio_gan_improved/best_model.pth
-    video_gan_improved/best_model.pth
+    image_gan_improved/best_model.pth   ← Git LFS (44MB)
+    audio_gan_improved/best_model.pth   ← Git LFS (9MB)
+    video_gan_improved/best_model.pth   ← Git LFS (43MB)
 scripts/                 # Training scripts (train_*_improved.py)
 frontend/src/            # React + Vite + Tailwind
+Dockerfile               # Multi-stage: node frontend build + python backend
+render.yaml              # Render service config
+requirements-deploy.txt  # Prod deps (no torch — installed separately in Dockerfile)
 ```
 
 ## Key Config (config/settings.py)
@@ -52,15 +73,13 @@ frontend/src/            # React + Vite + Tailwind
 | `VIDEO_GAN.temporal_window` | 5 |
 | `PATHS.models_dir` | `models/checkpoints/` |
 
-## Trained Model Accuracy (CPU, synthetic data)
+## Trained Model Accuracy
 
-| Model | Train Acc | Test Acc | Notes |
-|-------|-----------|----------|-------|
-| Image GAN | 63.4% | ~51% | Checkpoint: image_gan_improved |
-| Video GAN | 61.6% | ~51% | Checkpoint: video_gan_improved |
-| Audio GAN | 59.3% | ~51% | Checkpoint: audio_gan_improved |
-
-**~51% test accuracy = near-random.** GAN encode produces imperceptible stego output (good PSNR), but message decode is unreliable. GPU training needed to reach 90%+ accuracy for reliable decode.
+| Model | Accuracy | PSNR | Checkpoint |
+|-------|----------|------|------------|
+| Image GAN | ~95% | 45-50 dB | image_gan_improved |
+| Audio GAN | — | — | audio_gan_improved |
+| Video GAN | — | — | video_gan_improved |
 
 ## Important Design Decisions
 
@@ -76,6 +95,12 @@ In `api/main.py`, GAN encode/decode bypasses AES because the model can't guarant
 ### Audio GAN freq_bins = 128 (not 513)
 Was reduced from 513 → 128 in `config/settings.py` for training speed. Any new audio GAN training must use `freq_bins=128`.
 
+### GAN imports are lazy (deployment-safe)
+All three `gan_stego.py` files wrap `import torch` in `try/except (ImportError, OSError, Exception)` with `from __future__ import annotations` to prevent annotation evaluation at import time. `_TORCH_AVAILABLE` and `_TORCH_ERROR` module-level vars track the result.
+
+### Checkpoint fallback
+`get_*_method()` in `api/main.py` checks `os.path.exists()` before setting `model_path`. If no checkpoint is found, `model_path=None` and the model runs with random weights (no crash).
+
 ## API Endpoints
 
 | Method | Path | Description |
@@ -88,7 +113,8 @@ Was reduced from 513 → 128 in `config/settings.py` for training speed. Any new
 | POST | `/api/video/decode` | Extract from video |
 | GET | `/api/methods` | List all methods |
 | GET | `/api/models/status` | Model training status |
-| GET | `/health` | Health check |
+| GET | `/health` | Health check + torch status |
+| GET | `/api/debug/gan` | GAN model load diagnostics |
 
 All encode/decode endpoints accept `multipart/form-data` with fields: `cover`/`stego` (file), `message` (str), `method` (lsb/dct/dwt/gan), `password` (str), `seed` (optional int).
 
@@ -102,13 +128,11 @@ All encode/decode endpoints accept `multipart/form-data` with fields: `cover`/`s
 | `src is not numpy array` | Forgot to unpack `extract_frames` tuple | `frames, metadata = extract_frames(...)` |
 | `expected 2 channels, got 1` | Optical flow tensor shape wrong | Pass `flow_tensor = None` (optical flow disabled) |
 | AES decryption fails on GAN decode | GAN bit accuracy too low for AES | GAN method bypasses AES — already fixed in `api/main.py` |
-
-## GPU Training (Next Step)
-Current models trained on CPU with synthetic data → low accuracy. For reliable decode (90%+ accuracy):
-- Use Google Colab or any CUDA GPU
-- Train with real image/video/audio data
-- `base_channels=64`, `image_size=128`, `epochs=200`, `batch_size=32`
-- Script template: `colab_train_gpu.py` (at project root)
+| `ModuleNotFoundError: No module named 'torch'` | torch not in requirements-deploy.txt | Installed separately in Dockerfile from pytorch CPU wheel index |
+| `ModuleNotFoundError: No module named 'reedsolo'` | Missing from requirements-deploy.txt | Added to requirements-deploy.txt |
+| `ModuleNotFoundError: No module named 'einops'` | Missing from requirements-deploy.txt | Added to requirements-deploy.txt |
+| `FileNotFoundError: best_model.pth` | Checkpoints in .gitignore, not in Docker image | Tracked via Git LFS; COPY models/ models/ in Dockerfile |
+| `GAN method unavailable` on deploy | torch import fails silently | Check `/health` for `torch_error`; ensure libgomp1 in Dockerfile |
 
 ## Testing
 

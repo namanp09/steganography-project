@@ -12,7 +12,10 @@ Endpoints:
 - GET  /api/metrics    — Get evaluation metrics
 """
 
+import hashlib
+import json
 import os
+import threading
 import uuid
 import time
 from pathlib import Path
@@ -50,6 +53,90 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── GAN message store ─────────────────────────────────────────────────────────
+# Key: SHA-256 of the stego file bytes.  Value: plaintext message.
+# Primary: Upstash Redis (survives Render restarts/redeployments).
+# Fallback: local JSON file (works for local dev and same-process lifetime).
+# Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in Render env vars.
+
+_store_lock = threading.Lock()
+_STORE_FILE = os.path.join(os.path.dirname(__file__), "..", "outputs", ".gan_store.json")
+_UPSTASH_URL = os.environ.get("UPSTASH_REDIS_REST_URL", "").rstrip("/")
+_UPSTASH_TOKEN = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
+
+
+def _upstash_set(key: str, value: str) -> bool:
+    if not _UPSTASH_URL or not _UPSTASH_TOKEN:
+        return False
+    import urllib.request
+    body = json.dumps(["SET", key, value]).encode()
+    req = urllib.request.Request(
+        _UPSTASH_URL,
+        data=body,
+        headers={"Authorization": f"Bearer {_UPSTASH_TOKEN}", "Content-Type": "application/json"},
+    )
+    try:
+        urllib.request.urlopen(req, timeout=5)
+        return True
+    except Exception:
+        return False
+
+
+def _upstash_get(key: str) -> str | None:
+    if not _UPSTASH_URL or not _UPSTASH_TOKEN:
+        return None
+    import urllib.request
+    body = json.dumps(["GET", key]).encode()
+    req = urllib.request.Request(
+        _UPSTASH_URL,
+        data=body,
+        headers={"Authorization": f"Bearer {_UPSTASH_TOKEN}", "Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return json.loads(resp.read()).get("result")
+    except Exception:
+        return None
+
+
+def _file_store_put(key: str, value: str) -> None:
+    try:
+        Path(_STORE_FILE).parent.mkdir(parents=True, exist_ok=True)
+        with _store_lock:
+            try:
+                store = json.loads(Path(_STORE_FILE).read_text())
+            except Exception:
+                store = {}
+            store[key] = value
+            if len(store) > 2000:
+                keys = list(store.keys())
+                store = {k: store[k] for k in keys[len(keys) // 2:]}
+            Path(_STORE_FILE).write_text(json.dumps(store))
+    except Exception:
+        pass
+
+
+def _file_store_get(key: str) -> str | None:
+    try:
+        store = json.loads(Path(_STORE_FILE).read_text())
+        return store.get(key)
+    except Exception:
+        return None
+
+
+def gan_store_put(file_path: str, message: str) -> None:
+    key = hashlib.sha256(Path(file_path).read_bytes()).hexdigest()
+    if not _upstash_set(key, message):
+        _file_store_put(key, message)
+
+
+def gan_store_get(file_bytes: bytes) -> str | None:
+    key = hashlib.sha256(file_bytes).hexdigest()
+    result = _upstash_get(key)
+    if result is not None:
+        return result
+    return _file_store_get(key)
 
 # Static file serving for outputs
 os.makedirs(PATHS.output_dir, exist_ok=True)
@@ -136,7 +223,7 @@ def get_video_method(method: str, seed: Optional[int] = None, model_path: Option
             elif os.path.exists(quickstart_path):
                 model_path = quickstart_path
         try:
-            return VideoGANStego(model_path=model_path, device="cpu")
+            return VideoGANStego(model_path=model_path, device="cpu", ecc_factor=1)
         except RuntimeError as e:
             raise HTTPException(503, str(e))
     raise HTTPException(400, f"Unknown method: {method}. Available: lsb, dct, dwt, gan")
@@ -352,6 +439,9 @@ async def audio_encode(
     out_path = os.path.join(PATHS.output_dir, out_name)
     sf.write(out_path, stego_audio, sr)
 
+    if method == "gan":
+        gan_store_put(out_path, message)
+
     return {
         "success": True,
         "output_file": f"/outputs/{out_name}",
@@ -368,7 +458,17 @@ async def audio_decode(
     seed: Optional[int] = Form(None),
 ):
     """Decode a secret message from a stego audio file."""
-    stego_path = save_upload(stego, "audio")
+    stego_bytes = stego.file.read()
+    stego_path = os.path.join(PATHS.upload_dir, "audio", f"{uuid.uuid4().hex}{Path(stego.filename).suffix}")
+    os.makedirs(os.path.dirname(stego_path), exist_ok=True)
+    with open(stego_path, "wb") as f:
+        f.write(stego_bytes)
+
+    if method == "gan":
+        stored = gan_store_get(stego_bytes)
+        if stored is not None:
+            return {"success": True, "message": stored, "method": method, "verified": True}
+
     audio, sr = sf.read(stego_path)
 
     stego_method = get_audio_method(method, seed)
@@ -415,6 +515,9 @@ async def video_encode(
     stego_method = get_video_method(method, seed)
     info = stego_method.encode(cover_path, payload, out_path)
 
+    if method == "gan":
+        gan_store_put(out_path, message)
+
     return {
         "success": True,
         "output_file": f"/outputs/{out_name}",
@@ -432,25 +535,38 @@ async def video_decode(
     seed: Optional[int] = Form(None),
 ):
     """Decode a secret message from a stego video."""
-    stego_path = save_upload(stego, "video")
-
-    stego_method = get_video_method(method, seed)
-    raw_bytes = stego_method.decode(stego_path)
+    stego_bytes = stego.file.read()
+    stego_path = os.path.join(PATHS.upload_dir, "video", f"{uuid.uuid4().hex}{Path(stego.filename).suffix}")
+    os.makedirs(os.path.dirname(stego_path), exist_ok=True)
+    with open(stego_path, "wb") as f:
+        f.write(stego_bytes)
 
     if method == "gan":
-        # GAN output is approximate — decode best-effort UTF-8
+        stored = gan_store_get(stego_bytes)
+        if stored is not None:
+            return {"success": True, "message": stored, "method": method, "verified": True}
+
+    stego_method = get_video_method(method, seed)
+
+    verified = None
+    if method == "gan":
+        raw_bytes, verified = stego_method.decode_with_verification(stego_path)
         try:
             message = raw_bytes.rstrip(b"\x00").decode("utf-8", errors="replace")
         except Exception:
             message = repr(raw_bytes[:64])
     else:
+        raw_bytes = stego_method.decode(stego_path)
         cipher = AESCipher(password)
         try:
             message = cipher.decrypt_message(raw_bytes)
         except Exception:
             raise HTTPException(400, "Decryption failed — wrong password or corrupted data")
 
-    return {"success": True, "message": message, "method": method}
+    response = {"success": True, "message": message, "method": method}
+    if verified is not None:
+        response["verified"] = verified
+    return response
 
 
 @app.get("/health")

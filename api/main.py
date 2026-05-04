@@ -335,7 +335,13 @@ async def image_encode(
 
     # Embed
     stego_method = get_image_method(method, seed)
-    stego_img = stego_method.encode(cover_img, payload)
+    try:
+        stego_img = stego_method.encode(cover_img, payload)
+    except Exception as e:
+        import gc; gc.collect()
+        raise HTTPException(400, f"Encoding failed: {e}")
+    finally:
+        import gc; gc.collect()
 
     # Save output
     out_name = f"stego_{uuid.uuid4().hex}.png"
@@ -524,7 +530,15 @@ async def video_encode(
     out_path = os.path.join(PATHS.output_dir, out_name)
 
     stego_method = get_video_method(method, seed)
-    info = stego_method.encode(cover_path, payload, out_path)
+    try:
+        info = stego_method.encode(cover_path, payload, out_path)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:
+        import gc; gc.collect()
+        raise HTTPException(500, f"Video encoding failed: {e}")
+    finally:
+        import gc; gc.collect()
 
     if method == "gan":
         gan_store_put(out_path, message)

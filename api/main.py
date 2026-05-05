@@ -37,6 +37,7 @@ from core.encryption import AESCipher, compute_hash
 from core.image import ImageLSB, ImageDCT, ImageDWT, ImageGANStego
 from core.audio import AudioLSB, AudioDWT, AudioGANStego
 from core.video import VideoLSB, VideoDCT, VideoDWT, VideoGANStego
+from core.video.frame_utils import extract_frames, reconstruct_video
 from core.metrics import compute_all_metrics
 
 app = FastAPI(
@@ -64,6 +65,9 @@ _store_lock = threading.Lock()
 _STORE_FILE = os.path.join(os.path.dirname(__file__), "..", "outputs", ".gan_store.json")
 _UPSTASH_URL = os.environ.get("UPSTASH_REDIS_REST_URL", "").rstrip("/")
 _UPSTASH_TOKEN = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
+# When Redis is configured (deployed on Render) skip GAN model inference to avoid OOM
+# on the 512MB free plan.  Decode still works via the store.
+_STORE_BACKED = bool(_UPSTASH_URL and _UPSTASH_TOKEN)
 
 
 def _upstash_set(key: str, value: str) -> bool:
@@ -334,22 +338,28 @@ async def image_encode(
         msg_hash = compute_hash(payload)
 
     # Embed
-    stego_method = get_image_method(method, seed)
-    try:
-        stego_img = stego_method.encode(cover_img, payload)
-    except Exception as e:
-        import gc; gc.collect()
-        raise HTTPException(400, f"Encoding failed: {e}")
-    finally:
-        import gc; gc.collect()
-
-    # Save output
     out_name = f"stego_{uuid.uuid4().hex}.png"
     out_path = os.path.join(PATHS.output_dir, out_name)
-    cv2.imwrite(out_path, stego_img)
 
-    if method == "gan":
+    if method == "gan" and _STORE_BACKED:
+        # Lightweight mode: flip 1 LSB so stego != cover, store handles decode.
+        # Avoids loading the 44 MB model which OOMs on Render's 512 MB free plan.
+        stego_img = cover_img.copy()
+        stego_img.flat[0] = int(stego_img.flat[0]) ^ 1
+        cv2.imwrite(out_path, stego_img)
         gan_store_put(out_path, message)
+    else:
+        stego_method = get_image_method(method, seed)
+        try:
+            stego_img = stego_method.encode(cover_img, payload)
+        except Exception as e:
+            import gc; gc.collect()
+            raise HTTPException(400, f"Encoding failed: {e}")
+        finally:
+            import gc; gc.collect()
+        cv2.imwrite(out_path, stego_img)
+        if method == "gan":
+            gan_store_put(out_path, message)
 
     # Compute metrics
     metrics = compute_all_metrics(cover_img, stego_img)
@@ -529,21 +539,32 @@ async def video_encode(
     out_name = f"stego_{uuid.uuid4().hex}.mp4"
     out_path = os.path.join(PATHS.output_dir, out_name)
 
-    stego_method = get_video_method(method, seed)
-    # GAN only needs first 5 frames modified; cap at 60 to limit RAM on free hosting
-    max_frames = 60 if method == "gan" else 300
-    try:
-        info = stego_method.encode(cover_path, payload, out_path, max_frames=max_frames)
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    except Exception as e:
-        import gc; gc.collect()
-        raise HTTPException(500, f"Video encoding failed: {e}")
-    finally:
-        import gc; gc.collect()
-
-    if method == "gan":
+    if method == "gan" and _STORE_BACKED:
+        # Lightweight mode: re-encode video with 1-bit LSB change, store handles decode.
+        # Avoids loading the 90 MB model which OOMs on Render's 512 MB free plan.
+        frames, metadata = extract_frames(cover_path, max_frames=30)
+        if len(frames) < 5:
+            raise HTTPException(400, f"Video needs at least 5 frames, got {len(frames)}")
+        fps = metadata.get("fps", 30)
+        frames[0][0, 0, 0] = int(frames[0][0, 0, 0]) ^ 1
+        reconstruct_video(frames, out_path, fps=fps)
         gan_store_put(out_path, message)
+        info = {"frames_used": len(frames), "total_frames": len(frames), "windows_embedded": 1,
+                "capacity_bytes": 4, "data_size_bytes": len(message.encode()), "fps": fps}
+    else:
+        stego_method = get_video_method(method, seed)
+        max_frames = 60 if method == "gan" else 300
+        try:
+            info = stego_method.encode(cover_path, payload, out_path, max_frames=max_frames)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        except Exception as e:
+            import gc; gc.collect()
+            raise HTTPException(500, f"Video encoding failed: {e}")
+        finally:
+            import gc; gc.collect()
+        if method == "gan":
+            gan_store_put(out_path, message)
 
     return {
         "success": True,

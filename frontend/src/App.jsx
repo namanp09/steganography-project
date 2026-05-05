@@ -6,6 +6,7 @@ import AudioPage from './pages/AudioPage'
 import VideoPage from './pages/VideoPage'
 import HomePage from './pages/HomePage'
 import MethodComparison from './components/MethodComparison'
+import AttackResults from './components/AttackResults'
 
 export default function App() {
   const [activePage, setActivePage] = useState('home')
@@ -18,6 +19,11 @@ export default function App() {
     compare: (
       <div className="max-w-6xl mx-auto">
         <MethodComparison />
+      </div>
+    ),
+    attacks: (
+      <div className="max-w-6xl mx-auto">
+        <AttackResults />
       </div>
     ),
   }

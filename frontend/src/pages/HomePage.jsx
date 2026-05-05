@@ -1,6 +1,5 @@
 import React from 'react'
 import { Shield, Image, Music, Video, Lock, Brain, BarChart3, Zap } from 'lucide-react'
-import MethodComparison from '../components/MethodComparison'
 
 const features = [
   { icon: Lock, title: 'AES-256-GCM Encryption', desc: 'Military-grade authenticated encryption before embedding' },
@@ -10,9 +9,9 @@ const features = [
 ]
 
 const mediaCards = [
-  { id: 'image', icon: Image, title: 'Image Steganography', desc: 'LSB, DCT, DWT, and deep learning methods', color: 'from-blue-500 to-cyan-500' },
-  { id: 'audio', icon: Music, title: 'Audio Steganography', desc: 'LSB and DWT-based audio embedding', color: 'from-purple-500 to-pink-500' },
-  { id: 'video', icon: Video, title: 'Video Steganography', desc: 'INN, 3D CNN, motion-compensated (Primary Focus)', color: 'from-orange-500 to-red-500' },
+  { id: 'image', icon: Image, title: 'Image Steganography', desc: 'LSB · DCT · DWT · GAN', color: 'from-blue-500 to-cyan-500' },
+  { id: 'audio', icon: Music, title: 'Audio Steganography', desc: 'LSB · DWT · GAN', color: 'from-purple-500 to-pink-500' },
+  { id: 'video', icon: Video, title: 'Video Steganography', desc: 'LSB · DCT · DWT · GAN  —  Primary Focus', color: 'from-orange-500 to-red-500' },
 ]
 
 export default function HomePage({ onNavigate }) {
@@ -72,8 +71,18 @@ export default function HomePage({ onNavigate }) {
         </div>
       </section>
 
-      {/* Method Comparison */}
-      <MethodComparison />
+      {/* Nudge to Compare tab */}
+      <section className="text-center py-4">
+        <p className="text-gray-500 text-sm">
+          Curious how the methods stack up?{' '}
+          <button
+            onClick={() => onNavigate('compare')}
+            className="text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors"
+          >
+            See the full comparison →
+          </button>
+        </p>
+      </section>
     </div>
   )
 }

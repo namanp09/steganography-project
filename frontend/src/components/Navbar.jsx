@@ -1,11 +1,12 @@
 import React from 'react'
-import { Shield, Image, Music, Video, Home } from 'lucide-react'
+import { Shield, Image, Music, Video, Home, BarChart3 } from 'lucide-react'
 
 const navItems = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'image', label: 'Image', icon: Image },
   { id: 'audio', label: 'Audio', icon: Music },
   { id: 'video', label: 'Video', icon: Video },
+  { id: 'compare', label: 'Compare', icon: BarChart3 },
 ]
 
 export default function Navbar({ activePage, onNavigate }) {

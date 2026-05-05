@@ -1,5 +1,6 @@
 import React from 'react'
 import { Shield, Image, Music, Video, Lock, Brain, BarChart3, Zap } from 'lucide-react'
+import MethodComparison from '../components/MethodComparison'
 
 const features = [
   { icon: Lock, title: 'AES-256-GCM Encryption', desc: 'Military-grade authenticated encryption before embedding' },
@@ -70,6 +71,9 @@ export default function HomePage({ onNavigate }) {
           ))}
         </div>
       </section>
+
+      {/* Method Comparison */}
+      <MethodComparison />
     </div>
   )
 }

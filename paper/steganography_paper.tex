@@ -21,11 +21,11 @@
 
 \begin{document}
 
-% ── Title: 2 clean lines ─────────────────────────────────────────────────────
+% ── Title ────────────────────────────────────────────────────────────────────
 \title{Multi-Modal Digital Steganography: Classical and GAN-Based\\
 Approaches with Comprehensive Attack Robustness Analysis}
 
-% ── Authors: all three on one centred block ─────────────────────────────────
+% ── Authors ──────────────────────────────────────────────────────────────────
 \author{
 \IEEEauthorblockN{Naman Padiyar,\quad Piyush Thalwal,\quad Nipun Rawat}\\[3pt]
 \IEEEauthorblockA{
@@ -43,24 +43,24 @@ nipunrawat8320@gmail.com}
 Digital steganography conceals secret information within ordinary media
 files to enable covert communication without revealing the existence of
 a hidden message. This paper presents a unified multi-modal
-steganography system that supports image, audio, and video carriers
+steganography system that supports image and video carriers
 through a single web interface, implementing four embedding methods:
 Least Significant Bit (LSB) substitution, Discrete Cosine Transform
 (DCT) domain embedding, Discrete Wavelet Transform (DWT) domain
 embedding, and a Generative Adversarial Network (GAN) based approach.
 Classical methods are protected with AES-256-GCM authenticated
-encryption and Reed-Solomon error-correcting codes. Three independent
-GAN models are trained for image, audio, and video under CPU-only
+encryption and Reed-Solomon error-correcting codes. Two independent
+GAN models are trained for image and video under CPU-only
 hardware constraints. Baseline quality analysis confirms near-lossless
 embedding: LSB achieves PSNR of 76.44~dB and SSIM of 1.000, while DCT
 and DWT exceed 50~dB PSNR with SSIM above 0.995. A comprehensive attack
-simulation evaluates all methods under 13 image, 10 audio, and 9 video
+simulation evaluates all methods under 13 image and 9 video
 signal processing attacks using Peak Signal-to-Noise Ratio (PSNR) and
 Bit Error Rate (BER) as robustness metrics. The video GAN achieves the
 lowest average BER of 0.148, outperforming all classical methods. For
 images, DCT achieves the best classical robustness at average BER of
 0.290 and embedding PSNR of 46.87~dB. The imperceptibility-robustness
-tradeoff is analysed across all ten method-modality combinations.
+tradeoff is analysed across all eight method-modality combinations.
 The complete system is deployed as a full-stack web application using
 FastAPI, React, and Docker on the Render cloud platform.
 \end{abstract}
@@ -102,14 +102,14 @@ shift toward learning-based approaches.
 
 This paper investigates how \textit{learned steganographic embedding}
 based on Generative Adversarial Networks (GANs) can be extended
-beyond images to audio and video carriers within a single unified
+beyond images to video carriers within a single unified
 framework, and how such a system can be made deployable on
 resource-constrained hardware (CPU-only inference, 512~MB RAM). We
-build, train, and rigorously evaluate three GAN-based stego models
-(image, audio, video) within a production-ready web application and
+build, train, and rigorously evaluate two GAN-based stego models
+(image and video) within a production-ready web application and
 compare their robustness, imperceptibility, and detectability against
 classical baselines under a comprehensive attack simulation covering
-32 distinct attack configurations.
+22 distinct attack configurations.
 
 \subsection{Key Contributions}
 
@@ -117,16 +117,14 @@ The principal contributions of this work are:
 
 \begin{enumerate}
     \item \textbf{Unified multi-modal steganographic platform.} A
-    single deployable system supporting image, audio, and video
+    single deployable system supporting image and video
     carriers through a FastAPI backend and React frontend, removing
     the single-modality limitation of nearly all prior steganography
     works.
-    \item \textbf{Three GAN architectures optimised for CPU
-    inference.} An image GAN (UNet encoder, PatchGAN discriminator,
-    44~MB), an audio GAN operating on 128-bin mel-spectrograms
-    (9~MB), and a video GAN with 3D temporal convolutions over a
-    5-frame window (43~MB). All are trained from scratch on CPU
-    hardware.
+    \item \textbf{Two GAN architectures optimised for CPU inference.}
+    An image GAN (UNet encoder, PatchGAN discriminator, 44~MB) and
+    a video GAN with 3D temporal convolutions over a 5-frame window
+    (43~MB). Both are trained from scratch on CPU hardware.
     \item \textbf{H.264-aware noise layer for video GAN training.}
     A differentiable noise layer simulating frame-level JPEG
     quantisation, blur, and brightness perturbation enables the
@@ -138,8 +136,8 @@ The principal contributions of this work are:
     for classical baselines, providing confidentiality, integrity,
     and bounded error tolerance in a single integrated stack.
     \item \textbf{Comprehensive cross-modal attack benchmark.}
-    Systematic evaluation across 32 attack configurations (13 image,
-    10 audio, 9 video) using standardised PSNR and BER metrics—the
+    Systematic evaluation across 22 attack configurations (13 image,
+    9 video) using standardised PSNR and BER metrics—the
     first such cross-modal benchmark in the recent literature using
     a uniform methodology.
     \item \textbf{Production deployment under hardware constraints.}
@@ -189,7 +187,7 @@ extended GAN-based steganography to hybrid pipelines combining
 classical and learning-based methods \cite{b2}, multi-layered
 encoder–decoder schemes with deep learning \cite{b5}, video-specific
 adaptive frameworks for spatio-temporal content \cite{b3}, and
-diffusion-model-based audio steganography \cite{b1}.
+novel diffusion-based steganographic approaches \cite{b1}.
 
 \subsection{Limitations Identified in Prior Literature}
 
@@ -197,7 +195,7 @@ Across the surveyed literature, four limitations consistently recur:
 
 \textbf{L1. Single-modality scope.} The vast majority of recent
 steganography systems target a \textit{single} medium—usually images.
-Cross-modal frameworks that uniformly support image, audio, and video
+Cross-modal frameworks that uniformly support multiple carriers
 within one architecture and one consistent attack benchmark are rare,
 and the few that exist either focus on one carrier with
 single-paragraph mention of others or evaluate each modality under
@@ -216,8 +214,8 @@ preserving on-device scenarios.
 robustness against a small number of attacks (typically JPEG
 compression and Gaussian noise) and rarely include geometric
 transforms, spatial filtering, or temporal attacks for video.
-Comprehensive benchmarks across 30+ attack configurations using
-standardised PSNR/BER metrics across all three media types are
+Comprehensive benchmarks across 20+ attack configurations using
+standardised PSNR/BER metrics across multiple media types are
 absent from the recent literature \cite{b6}.
 
 \textbf{L4. Disconnected security pipeline.} Existing GAN-based
@@ -240,9 +238,9 @@ limitations.
 \hline
 \textbf{Lim.} & \textbf{Our Response} & \textbf{Section} \\
 \hline
-L1 & Unified image+audio+video platform with three GAN models on shared API & III \\
-L2 & CPU-only training and 512~MB-RAM CPU deployment for all three GANs & III \\
-L3 & 32-attack cross-modal benchmark with PSNR/BER & IV \\
+L1 & Unified image+video platform with two GAN models on shared API & III \\
+L2 & CPU-only training and 512~MB-RAM CPU deployment for both GANs & III \\
+L3 & 22-attack cross-modal benchmark with PSNR/BER & IV \\
 L4 & AES-256-GCM + PBKDF2 + Reed–Solomon integrated pipeline & III-B \\
 \hline
 \end{tabular}
@@ -256,8 +254,8 @@ L4 & AES-256-GCM + PBKDF2 + Reed–Solomon integrated pipeline & III-B \\
 
 This section presents our proposed system in detail. We describe the
 overall architecture (Section~III-A), the integrated security
-pipeline (Section~III-B), the three GAN architectures designed for
-image, audio, and video carriers (Section~III-C), the adversarial
+pipeline (Section~III-B), the two GAN architectures designed for
+image and video carriers (Section~III-C), the adversarial
 training procedure with the H.264-aware noise layer (Section~III-D),
 and a brief description of the classical baseline methods used for
 comparison (Section~III-E).
@@ -271,7 +269,7 @@ The frontend is a single-page React~18 application served via Vite,
 providing file upload, method and password selection, and stego-file
 download. The complete system is containerised with Docker, with
 PyTorch installed from the CPU-only wheel index, and is deployed on
-the Render cloud platform under a 512~MB-RAM free-tier. All three GAN
+the Render cloud platform under a 512~MB-RAM free-tier. Both GAN
 checkpoints are version-controlled via Git LFS and copied into the
 Docker image at build time. GAN modules use lazy \texttt{try/except}
 imports so that classical methods remain available even if PyTorch
@@ -308,12 +306,12 @@ the bit-perfect requirement of AES-GCM tag verification. GAN
 embedding instead carries raw UTF-8 bytes and performs best-effort
 decoding, deferring authentication to higher protocol layers.
 
-\subsection{Three GAN Architectures}
+\subsection{Two GAN Architectures}
 
-A central contribution of this work is the design of three
+A central contribution of this work is the design of two
 specialised GAN architectures—one per modality—optimised to operate
 within the same training and inference framework on CPU-only
-hardware. All three share the same conceptual structure: an encoder
+hardware. Both share the same conceptual structure: an encoder
 $E$ that injects a 128-bit message vector $m$ into a cover medium
 $C$, a decoder $D$ that recovers $m$ from the (possibly attacked)
 stego output, and a PatchGAN discriminator $\mathcal{D}$ that
@@ -331,14 +329,6 @@ discriminator uses PatchGAN $4{\times}4$ convolutions to produce a
 spatial validity map. With 32 base channels, the trained checkpoint
 is 44~MB.
 
-\textbf{Audio GAN.} Audio waveforms are first transformed into
-mel-spectrograms with $f_{\text{bins}}{=}128$ frequency bins (reduced
-from the 513-bin full FFT specifically to make CPU training
-feasible). The encoder and decoder operate as 1D convolutional
-networks along the time axis with 32 base channels. The
-spectrogram-domain output is inverse-transformed to a waveform via
-Griffin–Lim. Checkpoint size is 9~MB.
-
 \textbf{Video GAN.} The video encoder uses 3D convolutional layers
 across a temporal window of $T{=}5$ frames, processing tensors of
 shape $[1, 3, 5, 64, 64]$. The 5-frame window is the smallest size
@@ -353,17 +343,17 @@ Table~\ref{tab_models} summarises the architectural parameters.
 \begin{table}[htbp]
 \caption{GAN Model Architectures (Proposed)}
 \begin{center}
-\begin{tabular}{|l|c|c|c|}
+\begin{tabular}{|l|c|c|}
 \hline
-\textbf{Parameter}   & \textbf{Image GAN} & \textbf{Audio GAN} & \textbf{Video GAN} \\
+\textbf{Parameter}   & \textbf{Image GAN} & \textbf{Video GAN} \\
 \hline
-Input dims     & $64{\times}64{\times}3$ & 128 mel bins & $64{\times}64{\times}5$ \\
-Message bits   & 128 & 128 & 128 \\
-Base channels  & 32  & 32  & 16  \\
-Conv type      & 2D UNet & 1D & 3D  \\
-Temporal $T$   & --- & --- & 5 frames \\
-Discriminator  & PatchGAN & PatchGAN & PatchGAN-3D \\
-Checkpoint     & 44 MB & 9 MB & 43 MB \\
+Input dims     & $64{\times}64{\times}3$ & $64{\times}64{\times}5$ \\
+Message bits   & 128 & 128 \\
+Base channels  & 32  & 16  \\
+Conv type      & 2D UNet & 3D  \\
+Temporal $T$   & --- & 5 frames \\
+Discriminator  & PatchGAN & PatchGAN-3D \\
+Checkpoint     & 44 MB & 43 MB \\
 \hline
 \end{tabular}
 \label{tab_models}
@@ -372,7 +362,7 @@ Checkpoint     & 44 MB & 9 MB & 43 MB \\
 
 \subsection{Adversarial Training with H.264-Aware Noise Layer}
 
-All three models are trained jointly under a single compound loss:
+Both models are trained jointly under a single compound loss:
 \begin{equation}
 \mathcal{L} = \lambda_1\mathcal{L}_{\text{msg}}
             + \lambda_2\mathcal{L}_{\text{img}}
@@ -386,7 +376,7 @@ penalty, and
 $\mathcal{L}_{\text{adv}} = -\mathbb{E}[\log\mathcal{D}(E(C,m))]$
 is the adversarial loss against the discriminator.
 Loss weights $\lambda_1{=}10$, $\lambda_2{=}1$, $\lambda_3{=}0.01$
-are used for all three models, with the high $\lambda_1$ value
+are used for both models, with the high $\lambda_1$ value
 prioritising bit-recovery accuracy over visual fidelity—the
 appropriate ordering for a steganographic system.
 
@@ -402,7 +392,7 @@ spatio-temporally stable signal regions that survive realistic
 codec re-encoding—directly producing the consistently low BER profile
 observed in Section~IV.
 
-All three models are trained on CPU hardware. The image GAN uses
+Both models are trained on CPU hardware. The image GAN uses
 CIFAR-10 images resized to $64{\times}64$; the video GAN uses short
 clips from publicly available datasets. The image GAN is presently
 trained without a JPEG noise layer, which limits its still-image
@@ -412,16 +402,16 @@ in the limitations and future-work discussion.
 \subsection{Classical Baseline Methods}
 
 For comparison, we implement three classical baselines—LSB, DCT, and
-DWT—using their well-established constructions. LSB substitutes
-message bits into the least
-significant bits of pixel/sample values, giving high embedding PSNR
-(70–99~dB) but no robustness. DCT embeds via quantisation index
-modulation in mid-frequency $8{\times}8$ block coefficients to align
-with the JPEG processing chain. DWT embeds in Haar wavelet detail
-sub-bands (LH, HL) for images and Daubechies-4 detail coefficients
-for audio. The classical baselines share the security pipeline of
-Section~III-B; they are presented here as reference points for
-quantitatively evaluating the GAN-based proposed methods.
+DWT—using their well-established constructions \cite{b9}. LSB
+substitutes message bits into the least significant bits of pixel
+values, giving high embedding PSNR (70–99~dB) but no robustness.
+DCT embeds via quantisation index modulation in mid-frequency
+$8{\times}8$ block coefficients to align with the JPEG processing
+chain. DWT embeds in Haar wavelet detail sub-bands (LH, HL) for
+images and Daubechies-4 detail coefficients for video frames. The
+classical baselines share the security pipeline of Section~III-B;
+they are presented here as reference points for quantitatively
+evaluating the GAN-based proposed methods.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Experimental Results}
@@ -548,59 +538,6 @@ image GAN's training pipeline omits a JPEG-specific noise layer; the
 adversarial loss improves imperceptibility rather than compression
 robustness for still images.
 
-\subsection{Audio Steganography Results}
-
-Ten attacks cover six categories: AWGN noise (SNR 30~dB and 20~dB),
-low-pass filtering (4~kHz and 8~kHz), amplitude scaling ($\times$0.8
-and $\times$1.2), resampling ($\div$2 then $\times$2), temporal shift
-(100 samples), and echo addition (50~ms at 0.3$\times$ amplitude).
-Audio GAN results are excluded due to a model checkpoint architecture
-mismatch.
-
-Table~\ref{tab_audio} and Fig.~\ref{fig_chart_audio} present results.
-
-\begin{table}[htbp]
-\caption{Audio Steganography BER Under Attacks (Lower is Better)}
-\begin{center}
-\begin{tabular}{|l|c|c|}
-\hline
-\textbf{Attack}              & \textbf{LSB} & \textbf{DWT} \\
-\hline
-AWGN SNR = 30 dB             & 0.490 & \textbf{0.391} \\
-AWGN SNR = 20 dB             & 0.465 & 0.486 \\
-Low-Pass 4 kHz               & 0.518 & 0.518 \\
-Low-Pass 8 kHz               & 0.479 & \textbf{0.000} \\
-Volume $\times$0.8           & 0.490 & 0.525 \\
-Volume $\times$1.2           & 0.514 & 0.496 \\
-Resampling ($\div$2)         & 0.455 & \textbf{0.000} \\
-Time Shift 100 samples       & 0.522 & 0.537 \\
-Echo 50~ms (0.3$\times$)     & \textbf{0.455} & 0.500 \\
-\hline
-\textbf{Avg BER}             & 0.487 & \textbf{0.384} \\
-\textbf{Embed PSNR}          & \textbf{86.74} & 49.92 \\
-\hline
-\end{tabular}
-\label{tab_audio}
-\end{center}
-\end{table}
-
-\begin{figure}[htbp]
-\centerline{\includegraphics[width=\columnwidth]{chart_audio.png}}
-\caption{BER under 9 audio attacks. DWT achieves avg BER~0.384
-versus 0.487 for LSB (21.2\% improvement). DWT achieves BER $= 0.000$
-under 8~kHz low-pass filtering and resampling — attacks that preserve
-the frequency band in which DWT embeds. Both methods are destroyed by
-time shifting and echo.}
-\label{fig_chart_audio}
-\end{figure}
-
-DWT reduces average BER by 21.2\% relative to LSB. DWT achieves BER
-$= 0.000$ under Low-Pass 8~kHz and Resampling because these operations
-preserve signal content in the detail sub-band frequency range where
-DWT embeds. Time shifting destroys both methods (BER $> 0.5$) by
-displacing all samples from their expected index positions, causing
-complete desynchronisation at the decoder.
-
 \subsection{Video Steganography Results}
 
 Nine attacks cover: Gaussian noise ($\sigma$=10), JPEG frame
@@ -659,15 +596,14 @@ under frame dropping and brightness scaling.
 \subsection{Cross-Modal Summary and Method Selection}
 
 Fig.~\ref{fig_summary_ber} provides a consolidated comparison of
-average BER for each method across all three modalities.
+average BER for each method across both modalities.
 
 \begin{figure}[htbp]
 \centerline{\includegraphics[width=\columnwidth]{chart_summary_ber.png}}
 \caption{Average BER per method and modality. Lower bars indicate more
 robust methods. The red dashed line marks BER $= 0.5$ (data lost).
 GAN achieves the best video robustness (0.148); DCT leads for images
-(0.290); DWT leads for audio (0.384). Audio GAN and image/audio DCT
-audio results are marked N/A where not applicable or not tested.}
+(0.290); video DWT achieves the best classical video result (0.180).}
 \label{fig_summary_ber}
 \end{figure}
 
@@ -675,7 +611,7 @@ Table~\ref{tab_summary_full} presents the complete cross-modal
 robustness summary with qualitative verdicts.
 
 \begin{table}[htbp]
-\caption{Complete Cross-Modal Robustness Summary}
+\caption{Cross-Modal Robustness Summary}
 \begin{center}
 \begin{tabular}{|l|l|c|c|l|}
 \hline
@@ -685,10 +621,6 @@ Image & LSB & 70.27 dB & 0.440 & Fragile \\
 Image & DCT & 46.87 dB & 0.290 & \textbf{Most Robust} \\
 Image & DWT & 50.29 dB & 0.389 & Moderate \\
 Image & GAN & 45.67 dB & 0.427 & Fragile \\
-\hline
-Audio & LSB & 86.74 dB & 0.487 & Fragile \\
-Audio & DWT & 49.92 dB & 0.384 & \textbf{Most Robust} \\
-Audio & GAN & ---       & ---   & Not Tested \\
 \hline
 Video & LSB & 98.79 dB & 0.354 & Moderate \\
 Video & DCT & 97.76 dB & 0.190 & Robust \\
@@ -707,11 +639,11 @@ Video & GAN & 34.03 dB & 0.148 & \textbf{Most Robust} \\
 Fig.~\ref{fig_tradeoff} plots each method-modality combination as a
 point in the embed PSNR versus average BER space, visualising the
 fundamental tradeoff between imperceptibility and robustness across all
-ten evaluated configurations.
+eight evaluated configurations.
 
 \begin{figure}[htbp]
 \centerline{\includegraphics[width=\columnwidth]{chart_psnr_tradeoff.png}}
-\caption{Imperceptibility–robustness tradeoff for all ten
+\caption{Imperceptibility–robustness tradeoff for all eight
 method-modality combinations. Higher embed PSNR = less visible change;
 lower BER = more robust. Green shaded region: robust zone (BER $<
 0.15$); red shaded region: fragile zone (BER $\geq 0.35$). The video
@@ -721,9 +653,9 @@ GAN alone falls in the robust zone.}
 
 Three distinct clusters emerge from Fig.~\ref{fig_tradeoff}.
 
-\textit{Cluster 1 — High PSNR, Fragile (top-right):} LSB across all
-three modalities groups here with embed PSNR ranging from 70.27~dB
-(image) to 98.79~dB (video) but average BER between 0.354 and 0.487,
+\textit{Cluster 1 — High PSNR, Fragile (top-right):} LSB across both
+modalities groups here with embed PSNR ranging from 70.27~dB
+(image) to 98.79~dB (video) but average BER between 0.354 and 0.440,
 placing all LSB configurations firmly in the fragile zone. This is the
 canonical imperceptibility-without-robustness profile of spatial-domain
 methods: minimal signal modification yields high quality, but that
@@ -736,7 +668,7 @@ between 46--50~dB and average BER between 0.180 and 0.427. Transform-domain
 embedding accepts a reduction in PSNR (embedding in perceptually
 significant but attack-resistant frequency components) in exchange for
 meaningful robustness gains. The best result in this cluster—DWT video
-at BER 0.180—is 51\% lower BER than LSB video (0.354) at a cost of
+at BER 0.180—is 49\% lower BER than LSB video (0.354) at a cost of
 only 0.74~dB in embed PSNR.
 
 \textit{Cluster 3 — Low PSNR, Robust (bottom-left):} The video GAN
@@ -760,7 +692,7 @@ scenario:
     \item Use \textbf{DCT} when JPEG or H.264 frame compression is
     the dominant expected attack on image or video carriers.
     \item Use \textbf{DWT} when diverse attack types are expected and
-    a balanced tradeoff is required across image, audio, or video.
+    a balanced tradeoff is required across image or video.
     \item Use \textbf{GAN} for video transmission over lossy or
     adversarial channels where maximum robustness is the priority
     and a 34~dB embed PSNR is acceptable.
@@ -812,11 +744,11 @@ steganalysis.
 % ─────────────────────────────────────────────────────────────────────────────
 
 This paper presented a unified multi-modal steganography system
-integrating LSB, DCT, DWT, and GAN embedding across image, audio, and
+integrating LSB, DCT, DWT, and GAN embedding across image and
 video carriers, secured with AES-256-GCM authenticated encryption and
 Reed-Solomon error correction for classical methods. The system is
 fully deployed as a containerised web application. A comprehensive
-evaluation framework covering 32 attack configurations across three
+evaluation framework covering 22 attack configurations across two
 media types provides quantitative evidence for method selection in
 practical deployment scenarios.
 
@@ -826,22 +758,19 @@ only method in the defined Robust zone (BER $< 0.15$)—owing to the
 H.264 codec noise layer used during training. DCT provides the best
 classical robustness for images (avg BER 0.290) and video (avg BER
 0.190), consistently surviving JPEG compression with BER $= 0.000$
-at Q=90 and Q=75. DWT is the strongest audio method (avg BER 0.384),
-achieving perfect recovery under low-pass filtering and resampling.
-LSB, despite providing the highest embedding quality (70--99~dB PSNR),
-is classified Fragile or Moderate across all modalities. The
-imperceptibility–robustness tradeoff confirms that no single method
-simultaneously maximises both objectives: each configuration represents
-a distinct operating point on the Pareto frontier.
+at Q=90 and Q=75. LSB, despite providing the highest embedding quality
+(70--99~dB PSNR), is classified Fragile or Moderate across all
+configurations. The imperceptibility–robustness tradeoff confirms that
+no single method simultaneously maximises both objectives: each
+configuration represents a distinct operating point on the Pareto
+frontier.
 
 \textit{Limitations and Future Work.} The CPU-only training constraint
 limited GAN spatial resolution to 64$\times$64 pixels, and the image
 GAN was trained without a JPEG-specific noise layer, limiting its
-still-image compression robustness. The audio GAN checkpoint could not
-be fully evaluated due to an architecture mismatch. Planned extensions
-include GPU retraining at 128$\times$128 resolution, JPEG noise layer
-integration in the image GAN pipeline, synchronisation-robust audio
-embedding using learned markers, and formal steganalysis evaluation
+still-image compression robustness. Planned extensions include GPU
+retraining at 128$\times$128 resolution, JPEG noise layer integration
+in the image GAN pipeline, and formal steganalysis evaluation
 against modern detectors \cite{b6}, \cite{b12}.
 
 

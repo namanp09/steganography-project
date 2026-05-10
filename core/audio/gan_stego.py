@@ -28,12 +28,15 @@ class AudioGANStego:
         if not _TORCH_AVAILABLE:
             raise RuntimeError("PyTorch is not installed. GAN method is unavailable in this deployment.")
         self.device = device
+        # Checkpoint was trained with msg_length=128, freq_bins=128, base_ch=32.
+        # Hardcode these so config changes don't break checkpoint loading.
+        self._msg_length = 128
         self.ecc = BitRepetitionECC(factor=ecc_factor) if ecc_factor > 1 else None
-        self.effective_bits = AUDIO_GAN.message_bits // ecc_factor
+        self.effective_bits = self._msg_length // ecc_factor
 
         self.model = AudioGANSteganography(
-            msg_length=AUDIO_GAN.message_bits,
-            freq_bins=AUDIO_GAN.freq_bins,
+            msg_length=self._msg_length,
+            freq_bins=128,
             base_ch=32,
         ).to(device)
         self.model.eval()
@@ -62,9 +65,9 @@ class AudioGANStego:
         if self.ecc is not None:
             bits = self.ecc.encode(bits)
 
-        if len(bits) < AUDIO_GAN.message_bits:
-            bits = np.pad(bits, (0, AUDIO_GAN.message_bits - len(bits)))
-        bits = bits[: AUDIO_GAN.message_bits]
+        if len(bits) < self._msg_length:
+            bits = np.pad(bits, (0, self._msg_length - len(bits)))
+        bits = bits[: self._msg_length]
 
         return torch.from_numpy(bits.astype(np.float32))
 
@@ -96,20 +99,20 @@ class AudioGANStego:
         elif audio.dtype != np.float32:
             audio = audio.astype(np.float32)
 
-        # Resample if needed
-        if sr != AUDIO_GAN.n_fft:
-            audio = librosa.resample(audio, orig_sr=sr, target_sr=AUDIO_GAN.n_fft)
-            sr = AUDIO_GAN.n_fft
-
-        # STFT
+        # STFT — produces (n_fft//2+1, T) = (513, T) with n_fft=1024
         D = librosa.stft(audio, n_fft=self.n_fft, hop_length=self.hop_length)
         magnitude = np.abs(D)
         phase = np.angle(D)
 
-        # Normalize and convert to tensor
-        mag_norm = magnitude / (magnitude.max() + 1e-8)
-        mag_tensor = torch.from_numpy(mag_norm[np.newaxis, np.newaxis, :, :]).float().to(self.device)
-        phase_tensor = torch.from_numpy(phase[np.newaxis, np.newaxis, :, :]).float().to(self.device)
+        # Checkpoint was trained with freq_bins=128: slice lower 128 bins only.
+        # Upper bins (128:) are left untouched during embedding.
+        mag_slice = magnitude[:self._msg_length, :]   # (128, T)
+        phase_slice = phase[:self._msg_length, :]
+
+        mag_max = magnitude.max() + 1e-8
+        mag_norm = mag_slice / mag_max
+        mag_tensor = torch.from_numpy(mag_norm[np.newaxis, np.newaxis]).float().to(self.device)
+        phase_tensor = torch.from_numpy(phase_slice[np.newaxis, np.newaxis]).float().to(self.device)
 
         # Message
         message_bits = self._text_to_bits(secret_data).unsqueeze(0).to(self.device)
@@ -118,9 +121,10 @@ class AudioGANStego:
         with torch.no_grad():
             stego_mag_tensor, _ = self.model(mag_tensor, phase_tensor, message_bits)
 
-        # Convert back
-        stego_mag = stego_mag_tensor[0, 0].cpu().numpy()
-        stego_mag = stego_mag * magnitude.max()
+        # Merge stego slice back into full spectrogram
+        stego_slice = stego_mag_tensor[0, 0].cpu().numpy() * mag_max
+        stego_mag = magnitude.copy()
+        stego_mag[:self._msg_length, :] = stego_slice
 
         # Reconstruct with original phase
         D_stego = stego_mag * np.exp(1j * phase)
@@ -149,9 +153,10 @@ class AudioGANStego:
         D = librosa.stft(audio, n_fft=self.n_fft, hop_length=self.hop_length)
         magnitude = np.abs(D)
 
-        # Normalize
-        mag_norm = magnitude / (magnitude.max() + 1e-8)
-        mag_tensor = torch.from_numpy(mag_norm[np.newaxis, np.newaxis, :, :]).float().to(self.device)
+        # Slice to the 128 freq bins the model was trained on
+        mag_slice = magnitude[:self._msg_length, :]
+        mag_norm = mag_slice / (mag_slice.max() + 1e-8)
+        mag_tensor = torch.from_numpy(mag_norm[np.newaxis, np.newaxis]).float().to(self.device)
 
         # Run ONLY the decoder — do not re-encode
         with torch.no_grad():

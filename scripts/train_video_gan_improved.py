@@ -169,15 +169,21 @@ def train(epochs: int = 120, warmup_epochs: int = 40, resume: bool = False):
         model.load_state_dict(torch.load(ckpt_path, map_location=device))
         print(f"✓ Resumed from {ckpt_path}")
 
-    # Optimizers — lower LR for generator to protect visual quality
-    opt_dec = torch.optim.AdamW(model.decoder.parameters(),   lr=1e-3,  weight_decay=1e-4)
+    # Boost initial strength so the decoder has a detectable signal to learn from.
+    # We'll fine-tune this down after training (same as image GAN recipe).
+    with torch.no_grad():
+        model.generator.strength.data = torch.tensor(0.3, device=device)
+    print(f"Generator strength initialized to {model.generator.strength.item():.2f}")
+
+    # Optimizers — decoder gets higher LR to learn embedding pattern fast
+    opt_dec = torch.optim.AdamW(model.decoder.parameters(),   lr=5e-3,  weight_decay=1e-4)
     opt_g   = torch.optim.AdamW(model.generator.parameters(), lr=2e-4,  weight_decay=1e-4)
     sched_dec = torch.optim.lr_scheduler.CosineAnnealingLR(opt_dec, T_max=epochs, eta_min=1e-6)
     sched_g   = torch.optim.lr_scheduler.CosineAnnealingLR(opt_g,   T_max=epochs, eta_min=1e-6)
 
-    # Loss weights
-    LAMBDA_MSG = 5.0   # message recovery (primary goal in warmup)
-    LAMBDA_IMG = 1.0   # video quality (low during warmup, doesn't need to be high)
+    # Loss weights — heavy message penalty so decoder gets strong gradient signal
+    LAMBDA_MSG = 20.0  # was 5.0 — stronger push for message recovery
+    LAMBDA_IMG = 0.5   # keep image quality gentle during warmup
     LAMBDA_IMG_ROBUST = 10.0  # raise after warmup
 
     best_test_acc = 0.0
@@ -211,6 +217,11 @@ def train(epochs: int = 120, warmup_epochs: int = 40, resume: bool = False):
             opt_g.step()
             opt_dec.step()
 
+            # During warmup: keep strength strong so decoder has detectable signal
+            if is_warmup:
+                with torch.no_grad():
+                    model.generator.strength.data.clamp_(min=0.1, max=1.0)
+
             with torch.no_grad():
                 acc = ((torch.sigmoid(decoded) > 0.5) == messages.bool()).float().mean().item()
             accs.append(acc)
@@ -225,7 +236,7 @@ def train(epochs: int = 120, warmup_epochs: int = 40, resume: bool = False):
         test_acc, test_psnr = evaluate(model, test_loader, device)
 
         marker = ""
-        if test_acc > best_test_acc and (test_acc >= 80.0 or epoch > warmup_epochs):
+        if test_acc > best_test_acc and (test_acc >= 60.0 or epoch > warmup_epochs):
             best_test_acc = test_acc
             torch.save(model.state_dict(), ckpt_path)
             marker = "  ✓ saved"

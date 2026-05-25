@@ -65,9 +65,11 @@ _store_lock = threading.Lock()
 _STORE_FILE = os.path.join(os.path.dirname(__file__), "..", "outputs", ".gan_store.json")
 _UPSTASH_URL = os.environ.get("UPSTASH_REDIS_REST_URL", "").rstrip("/")
 _UPSTASH_TOKEN = os.environ.get("UPSTASH_REDIS_REST_TOKEN", "")
-# When Redis is configured (deployed on Render) skip GAN model inference to avoid OOM
-# on the 512MB free plan.  Decode still works via the store.
-_STORE_BACKED = bool(_UPSTASH_URL and _UPSTASH_TOKEN)
+# Skip GAN model inference when: (a) Upstash Redis is configured, OR (b) running on
+# Render's free plan (RENDER env var is set automatically by Render).  Avoids OOM
+# from loading the 46–90 MB model weights on a 512 MB instance.  Decode still works
+# via the store (Redis when available, otherwise the local JSON file).
+_STORE_BACKED = bool(_UPSTASH_URL and _UPSTASH_TOKEN) or bool(os.environ.get("RENDER"))
 
 
 def _upstash_set(key: str, value: str) -> bool:
@@ -499,7 +501,7 @@ async def audio_decode(
     audio, sr = sf.read(stego_path)
 
     stego_method = get_audio_method(method, seed)
-    raw_bytes = stego_method.decode(audio)
+    raw_bytes = stego_method.decode(audio, sr)
 
     if method == "gan":
         try:
